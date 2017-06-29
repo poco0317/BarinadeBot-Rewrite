@@ -100,3 +100,4 @@ bot-env/
 
 # mypy
 .mypy_cache/
+config/config.ini
