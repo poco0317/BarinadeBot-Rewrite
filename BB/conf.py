@@ -14,7 +14,9 @@ class Conf:
         config.read(conf, encoding='utf-8')
         
         self.THE_TOKEN = config.get("Login", "Token", fallback=Fallbacks.token)
+        self.owner_id = int(config.get("Permissions", "OwnerID", fallback=Fallbacks.ownerID))
         
         
 class Fallbacks:
-    token = 0
+    token = "0"
+    ownerID = 0
