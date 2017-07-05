@@ -1,13 +1,18 @@
 import discord
+from BB.permissions import *
 from BB.bot import Barry
 from discord.ext import commands
 import asyncio
-from BB.permissions import *
+import traceback
 
 
-
+print("Barinade Bot Beginning...")
 bot = commands.Bot(command_prefix="~", description="I am a sunglasses-wearing shiba out and eager to steal your money and provide you services in return")
 #all the bot events must go in this file
+
+
+
+print("I'm constructing the largest class...")
 BarryBot = Barry(bot)
 
 
@@ -23,29 +28,71 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    if message.author.bot:
-        return
-    if message.guild == None:
-        return
     #to reply: message.channel.send("g")
     #throw extra on_message stuff here if needed
-        
+    if message.author.bot:
+        return
+    if message.author.id in BarryBot.blacklist:
+        return
+    if message.guild == None:
+        ctx = await bot.get_context(message)
+        if ctx.valid:
+            args = message.content.split()
+            try:
+                if args[0][1:].lower() in ["uno", "u", "uon", "nuo"]:
+                    if args[1].lower() in ["play", "p", "plcard", "playcard", "card", "pc", "pass", "passturn", "draw", "pa", "pas", "d", "getcard", "get", "darw", "ward", "endturn"]:
+                        await bot.process_commands(message)
+                        return
+            except:
+                pass
+        return
+    
     await bot.process_commands(message)
 
 @bot.event
 async def on_command_error(ctx, error):
     #print(error.__class__.__name__)
     if isinstance(error, uno_error):
-        BarryBot.loop.create_task(BarryBot.delete_later(ctx.message, 15))
-        return await ctx.send("```Error:\n"+error.message+"```", delete_after=15)
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
+    if isinstance(error, player_error):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
+    if isinstance(error, not_owner):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\nOnly the host of the bot may use this command.```", delete_after=15)
+    if isinstance(error, not_server_owner):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\nOnly the server owner may use this command.```", delete_after=15)
+    if isinstance(error, not_a_mod):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\nOnly a server mod may use this command. Mods have the tag 'Manage Messages' in one of their roles.```", delete_after=15)
+    if isinstance(error, not_an_admin):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\nOnly a server admin may use this command. Admins have the tag 'Manage Server' in one of their roles.```", delete_after=15)
+    if isinstance(error, not_a_superadmin):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\nOnly a superadmin may use this command. Superadmins have the tag 'Administrator' in one of their roles.```", delete_after=15)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\nSome argument is missing:\n"+ctx.command.usage+"```", delete_after=15)
+    print(error)
+    try:
+        traceback.print_tb(error.__traceback__)
+    except:
+        pass
     
-    
-    
+@bot.event
+async def on_command(ctx):
+    try:
+        await BarryBot.delete_later(ctx.message, 15)
+    except:
+        pass
 
     
     
-print("Barinade Bot Beginning...")
-print("Let's try to connect.")
+
+print("That's done; let's try to connect.")
 
 
 bot.run(BarryBot.THE_SECRET_TOKEN)

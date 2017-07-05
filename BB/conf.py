@@ -15,8 +15,11 @@ class Conf:
         
         self.THE_TOKEN = config.get("Login", "Token", fallback=Fallbacks.token)
         self.owner_id = int(config.get("Permissions", "OwnerID", fallback=Fallbacks.ownerID))
+        self.download_path = config.get("Music", "Path", fallback=Fallbacks.download_path)
+
         
         
 class Fallbacks:
     token = "0"
     ownerID = 0
+    download_path = ""
