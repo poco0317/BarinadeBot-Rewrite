@@ -22,7 +22,7 @@ class Barry(discord.Client):
         self.THE_SECRET_TOKEN = self.config.THE_TOKEN
         self.loop = asyncio.get_event_loop()
         self.bot = bot
-        self.downloader = Downloader()
+        self.downloader = Downloader(self.config.download_path)
         self.bot.add_cog(MainCommands(self.bot, self.config)) #add the main command class so the bot actually listens
         self.bot.add_cog(self) #also a cheaty way to just fit all the commands into this class
         self.bot.add_cog(Uno(self.bot, self.config, self.loop, self))        
@@ -55,12 +55,12 @@ class Barry(discord.Client):
             await message.delete(reason="Automatic deletion by Bot.")
         except:
             pass
-        
 
 
-        
-    
-        
+
+
+
+
 class MainCommands: #command defs can go here as well
 
     def __init__(self, bot, config):
@@ -73,18 +73,11 @@ class MainCommands: #command defs can go here as well
     @commands.command(hidden=True)
     @commands.check(Perms.is_owner)
     async def test(self, ctx, *, song : str):
-        player = await ctx.author.voice.channel.connect()
+        #player = await ctx.author.voice.channel.connect()
+        #
         player.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song), volume=0.5), after=lambda e: print("done", e))
         player.is_playing()
         self.players.add(player)
-
-            
-    @commands.command(hidden=True)
-    @commands.check(Perms.is_owner)
-    async def vol(self, ctx, *, vol : float):
-        for player in self.players:
-            
-            player.source.volume = vol
         
     
     @commands.group(hidden=True)

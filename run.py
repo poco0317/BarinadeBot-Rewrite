@@ -85,7 +85,7 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_command(ctx):
     try:
-        await BarryBot.delete_later(ctx.message, 15)
+        await BarryBot.delete_later(ctx.message, 20)
     except:
         pass
 

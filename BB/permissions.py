@@ -85,7 +85,19 @@ class alreadyJoined(player_error):
 class alreadyLeft(player_error):
     def __init__(self):
         self.message = "I am not in any voice channels on this server."
-    
+        
+class entryFailure(player_error):
+    def __init__(self):
+        self.message = "An error occurred when trying to add the file to the queue.\nThe most likely issue is that the video was not found.\nIn a rare case, the file would still be added to the queue with no information."
+        
+class unsupportedPlaylist(player_error):
+    def __init__(self):
+        self.message = "Playlist queueing is currently unsupported."
+        
+class playingError(player_error):
+    def __init__(self):
+        self.message = "An error occurred during playback of the song."
+        
     
 class uno_error(commands.CommandError):
     def __init__(self):
