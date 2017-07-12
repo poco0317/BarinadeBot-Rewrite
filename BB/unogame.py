@@ -22,7 +22,7 @@ class Uno:
         
     @commands.group(aliases=["u", "nou", "uon"], invoke_without_command=True)
     async def uno(self, ctx, *, gametype : str = "classic"):
-        '''The main command for uno.
+        '''The group command for Uno. All Uno commands start with this.
         Using this command with no arguments will start a game of uno if one does not exist in this text channel.
         Starting a game of uno outside of the server's main channel will send a message to the main channel alerting them of the new game.
         
@@ -61,8 +61,8 @@ class Uno:
         embed.set_thumbnail(url=game.colorURL)
         game.messageHolder = await ctx.send(embed=embed)
         if game.chan != ctx.guild.default_channel and gametype not in ["silent", "quiet", "unannounced"]:
-            #game.notifyMessage = await ctx.guild.default_channel.send("A game of "+game.gameType+" Uno is starting in "+game.chan.name+". Say '!uno join' in there to join the game.")
-            pass
+            game.notifyMessage = await ctx.guild.default_channel.send("A game of "+game.gameType+" Uno is starting in "+game.chan.name+". Say '!uno join' in there to join the game.")
+            #pass
             
     @uno.command(hidden=True)
     @commands.check(Perms.is_guild_mod)

@@ -70,13 +70,25 @@ class not_a_superadmin(commands.CommandError):
     pass
     
     
-class player_error(commands.CommandError):
+class unimplemented(commands.CommandError):
     def __init__(self):
+        self.message = "This command is unimplemented"
+    
+    
+    
+    
+    
+    
+    
+class player_error(commands.CommandError):
+    def __init__(self, passed_ctx=None):
         self.message = "This is a generic music player error."
+        self.passed_ctx = passed_ctx
         
 class downloaderBroke(player_error):
-    def __init__(self):
+    def __init__(self, passed_ctx):
         self.message = "An error occurred when trying to download the file."
+        self.passed_ctx = passed_ctx
         
 class alreadyJoined(player_error):
     def __init__(self):
@@ -97,6 +109,50 @@ class unsupportedPlaylist(player_error):
 class playingError(player_error):
     def __init__(self):
         self.message = "An error occurred during playback of the song."
+        
+class currentlyPlaying(player_error):
+    def __init__(self):
+        self.message = "You are not allowed to move me while I'm playing music.\nServer mods may move me manually or with commands instead."
+        
+class contextNoQueue(player_error):
+    def __init__(self):
+        self.message = "You are not allowed to queue music from your position.\nServer mods can bypass this."
+
+class noChannel(player_error):
+    def __init__(self):
+        self.message = "You are not in any voice channels on this server.\nServer mods can bypass this."
+        
+class impossible_noChannel(player_error):
+    def __init__(self):
+        self.message = "You are not in a voice channel."
+        
+class outsideChannel(player_error):
+    def __init__(self):
+        self.message = "You cannot queue music from a different voice channel while music is playing.\nServer mods can bypass this."
+        
+class modBypassAttempt(player_error):
+    def __init__(self):
+        self.message = "You cannot queue music if you are not in a voice channel and no voice channel has been established for the player."
+        
+class drasticChange(player_error):
+    def __init__(self):
+        self.message = "You attempted to change the volume by more than 30%.\nServer mods can bypass this."
+        
+class volOutOfBounds(player_error):
+    def __init__(self):
+        self.message = "Your new volume must be between 1 and 200."
+        
+class entryDoesntExist(player_error):
+    def __init__(self):
+        self.message = "No entry exists in the playlist at that position."
+        
+class alreadySkipped(player_error):
+    def __init__(self):
+        self.message = "You already voted to skip this entry."
+        
+class skipFailure(player_error):
+    def __init__(self):
+        self.message = "There was an error skipping the song. The player could not stop playing."
         
     
 class uno_error(commands.CommandError):

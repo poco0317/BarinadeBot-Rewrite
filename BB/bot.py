@@ -13,6 +13,8 @@ from BB.conf import Conf
 from BB.permissions import Perms
 from BB.unogame import The_Game, Uno
 from BB.player import Player, Downloader
+from BB.settings import Settings
+from BB.mods import Moderation
 
 
 class Barry(discord.Client):
@@ -27,6 +29,8 @@ class Barry(discord.Client):
         self.bot.add_cog(self) #also a cheaty way to just fit all the commands into this class
         self.bot.add_cog(Uno(self.bot, self.config, self.loop, self))        
         self.bot.add_cog(Player(self.bot, self.config, self.loop, self))
+        self.bot.add_cog(Settings(self.bot, self.config, self.loop, self))
+        self.bot.add_cog(Moderation(self.bot, self.config, self.loop, self))
         self.UnoGames = {}
         
         self.blacklist = set()
@@ -40,7 +44,7 @@ class Barry(discord.Client):
         self.blacklist.add(ctx.message.author.id)
 
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True, aliases=["shtudown", "sd", "shtdon", "shutdwon"])
     @commands.check(Perms.is_owner)
     async def shutdown(self, ctx):
         await ctx.send("Shutting down. I will not restart until manually run again.")

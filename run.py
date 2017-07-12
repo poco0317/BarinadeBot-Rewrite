@@ -56,8 +56,11 @@ async def on_command_error(ctx, error):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
     if isinstance(error, player_error):
-        await BarryBot.delete_later(ctx.message, 15)
-        return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
+        try:
+            await BarryBot.delete_later(ctx.message, 15)
+            return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
+        except:
+            return await error.passed_ctx.send("```Error\n"+error.message+"```", delete_after=15)
     if isinstance(error, not_owner):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\nOnly the host of the bot may use this command.```", delete_after=15)
@@ -76,6 +79,9 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\nSome argument is missing:\n"+ctx.command.usage+"```", delete_after=15)
+    if isinstance(error, unimplemented):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
     print(error)
     try:
         traceback.print_tb(error.__traceback__)
