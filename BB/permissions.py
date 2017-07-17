@@ -154,6 +154,10 @@ class skipFailure(player_error):
     def __init__(self):
         self.message = "There was an error skipping the song. The player could not stop playing."
         
+class songTooLong(player_error):
+    def __init__(self):
+        self.message = "The song you tried to queue is far too long. Try something less than 3 hours."
+        
     
 class uno_error(commands.CommandError):
     def __init__(self):

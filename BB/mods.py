@@ -18,3 +18,8 @@ class Moderation:
         self.loop = loop
         self.config = config
         self.BarryBot = BarryBot
+        
+    @commands.group()
+    async def purge(self, ctx):
+        ''' unimplemented'''
+        raise unimplemented

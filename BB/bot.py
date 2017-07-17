@@ -13,7 +13,7 @@ from BB.conf import Conf
 from BB.permissions import Perms
 from BB.unogame import The_Game, Uno
 from BB.player import Player, Downloader
-from BB.settings import Settings
+from BB.settings import Settings, ServerSettings
 from BB.mods import Moderation
 
 
@@ -32,8 +32,15 @@ class Barry(discord.Client):
         self.bot.add_cog(Settings(self.bot, self.config, self.loop, self))
         self.bot.add_cog(Moderation(self.bot, self.config, self.loop, self))
         self.UnoGames = {}
+        self.settings = {}
+        
+        
+        self.logchan = None
+        
         
         self.blacklist = set()
+        
+        
         super().__init__()
 
     

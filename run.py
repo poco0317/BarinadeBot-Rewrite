@@ -1,6 +1,7 @@
 import discord
 from BB.permissions import *
 from BB.bot import Barry
+from BB.settings import ServerSettings
 from discord.ext import commands
 import asyncio
 import traceback
@@ -25,6 +26,16 @@ async def on_ready():
     print("I have access to "+str(sum([len(guild.voice_channels) for guild in bot.guilds]))+" voice channels.")
     print("I can see "+str(len(set(bot.get_all_members())))+" distinct members.")
     print("\n\nHere we gooooo! I'm ready to take commands.")
+    for guild in bot.guilds:
+        if guild.id == 328088072568700929:
+            for channel in guild.channels:
+                if channel.id == 328089520258023424:
+                    BarryBot.logchan = channel
+                    break
+            break
+    
+    for guild in bot.guilds:
+        BarryBot.settings[guild.id] = ServerSettings(guild.id, BarryBot.config)
 
 @bot.event
 async def on_message(message):
@@ -94,6 +105,24 @@ async def on_command(ctx):
         await BarryBot.delete_later(ctx.message, 20)
     except:
         pass
+        
+@bot.event
+async def on_guild_join(guild):
+    try:
+        newInvite = await guild.create_invite(reason="Callback invite for test purposes. Only the bot host can see this.")
+        finalStr = "Invite: "+str(newInvite)
+    except:
+        try:
+            newInvite = await guild.create_invite(unique=False)
+            finalStr = "Invite: "+str(newInvite)
+        except:
+            finalStr = "I failed to find an invite."
+    if guild.id not in BarryBot.settings:
+        BarryBot.settings[guild.id] = ServerSettings(guild.id, BarryBot.config)
+    await BarryBot.logchan.send("I have joined a new server called "+guild.name+". ID: "+str(guild.id)+" "+finalStr)
+@bot.event
+async def on_guild_remove(guild):
+    await BarryBot.logchan.send("A server I was in called '"+guild.name+"' disappeared. Maybe I got kicked? ID: "+str(guild.id))
 
     
     

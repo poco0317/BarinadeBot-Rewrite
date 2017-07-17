@@ -1,5 +1,6 @@
 import configparser
 import os
+import shutil
 
 class Conf:
     def __init__(self, conf):
@@ -7,8 +8,12 @@ class Conf:
         config = configparser.ConfigParser(interpolation=None)
         
         if not config.read(conf, encoding='utf-8'):
-            print("I'm missing important stuff. (it's config related)")
-            print("Check to see that the config exists here:" +self.options)
+            print("I had to remake the config file from default. Please check the config and restart once the proper settings have been changed.")
+            print("The config should exist here: " +self.options)
+            try:
+                shutil.copy(os.path.dirname(self.options)+"/example_config.ini", self.options)
+            except:
+                print("Well... Somehow the example I was copying from is also gone. You're in a bad spot.")
             os._exit(1)
             
         config.read(conf, encoding='utf-8')
@@ -19,7 +24,7 @@ class Conf:
 
         
         
-class Fallbacks:
+class Fallbacks: #these will only get used if the user leaves the config.ini existant but really messes something up... everything breaks if they get used.
     token = "0"
     ownerID = 0
     download_path = ""

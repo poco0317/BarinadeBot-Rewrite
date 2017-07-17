@@ -153,6 +153,9 @@ class Player: #this represents commands and not an actual player/voicechan objec
             raise unsupportedPlaylist
         else:
             #check length of song and error if too long
+            if info.get('duration',0) > 10800:
+                await change_later.delete()
+                raise songTooLong
             
             try:
                 entry, position = await self.players[ctx.guild.id][1].add_entry(url, queuer=ctx.author)
