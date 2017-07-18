@@ -19,7 +19,7 @@ from BB.mods import Moderation
 
 class Barry(discord.Client):
 
-    def __init__(self, bot, conf=None, perms=None):
+    def __init__(self, bot):
         self.config = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))+"\\config\\config.ini")
         self.THE_SECRET_TOKEN = self.config.THE_TOKEN
         self.loop = asyncio.get_event_loop()

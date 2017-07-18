@@ -63,7 +63,7 @@ class Uno:
         if game.chan != ctx.guild.default_channel and gametype not in ["silent", "quiet", "unannounced"]:
             game.notifyMessage = await ctx.guild.default_channel.send("A game of "+game.gameType+" Uno is starting in "+game.chan.name+". Say '!uno join' in there to join the game.")
             #pass
-            
+
     @uno.command(hidden=True)
     @commands.check(Perms.is_guild_mod)
     async def update(self, ctx):
@@ -317,6 +317,7 @@ class Uno:
         '''- Draw a card if it is your turn.'''
         if ctx.channel.id not in self.BarryBot.UnoGames and ctx.guild:
             raise notInProgress
+        theID = None
         if not ctx.guild:
             for ID,gayme in self.BarryBot.UnoGames.items():
                 if ctx.author.id in gayme.playerCards:
@@ -324,6 +325,8 @@ class Uno:
         else:
             await ctx.message.delete()
             theID = ctx.channel.id
+        if theID is None:
+            return
         game = self.BarryBot.UnoGames[theID]
         if ctx.author.id not in game.playerCards:
             raise notPlaying
@@ -339,8 +342,8 @@ class Uno:
                     await ctx.author.send("You can't draw because you have a playable card!")
                     await game.chan.send(ctx.author.name+" tried to draw, but has a playable card!", delete_after=10)
                     return
-            def quickcheck(card):
-                return card in ["w", "wd4"] or card.split()[0] == topSimple[0] or card.split()[1] == topSimple[1]
+            def quickcheck(carrd):
+                return carrd in ["w", "wd4"] or carrd.split()[0] == topSimple[0] or carrd.split()[1] == topSimple[1]
             game.playerCards[ctx.author.id] = game.playerCards[ctx.author.id]+game.card_Gen(1)
             broken = False
             draws = 1
@@ -439,6 +442,7 @@ class Uno:
         Due to limitations, this command could not be named "pass." Using !uno pass will still work, however.'''
         if ctx.channel.id not in self.BarryBot.UnoGames and ctx.guild:
             raise notInProgress
+        theID = None
         if not ctx.guild:
             for ID,gayme in self.BarryBot.UnoGames.items():
                 if ctx.author.id in gayme.playerCards:
@@ -446,6 +450,8 @@ class Uno:
         else:
             await ctx.message.delete()
             theID = ctx.channel.id
+        if theID is None:
+            return
         game = self.BarryBot.UnoGames[theID]
         if ctx.author.id not in game.playerCards:
             raise notPlaying
@@ -470,6 +476,7 @@ class Uno:
         You may only play a card which matches the top card unless it is a wild.'''
         if ctx.channel.id not in self.BarryBot.UnoGames and ctx.guild:
             raise notInProgress
+        theID = None
         if not ctx.guild:
             for ID,gayme in self.BarryBot.UnoGames.items():
                 if ctx.author.id in gayme.playerCards:
@@ -477,6 +484,8 @@ class Uno:
         else:
             await ctx.message.delete()
             theID = ctx.channel.id
+        if theID is None:
+            return
         game = self.BarryBot.UnoGames[theID]
         if ctx.author.id not in game.playerCards:
             raise notPlaying
@@ -489,7 +498,7 @@ class Uno:
         cardSimple = game.card_Converter(cardArr, Simplify=True)
         cardComplicated = game.card_Converter(cardArr)
         topSimple = game.card_Converter(topArr, Simplify=True)
-        topComplicated = game.card_Converter(topArr)
+        #topComplicated = game.card_Converter(topArr)
         if not game.card_Checker(cardSimple):
             raise notACard
         if not cardSimple or not cardComplicated:
@@ -801,10 +810,10 @@ class The_Game:
         nextPlayer = self.players[self.next_turn(peekNext=True)]
         curPlayer = self.players[self.currentTurn]
         self.colorURL = self.get_color_url(self.topCard[0].split())
-        if self.topCard[0].split()[1] in ["r", "b", "g", "y"]:
-            topCardStr = " ".join(self.card_Converter(self.topCard[0].split()))
-        else:
-            topCardStr = self.topCard[0]
+        # if self.topCard[0].split()[1] in ["r", "b", "g", "y"]:
+        #     topCardStr = " ".join(self.card_Converter(self.topCard[0].split()))
+        # else:
+        #     topCardStr = self.topCard[0]
         embed = discord.Embed(color = discord.Color(0xc27c0e), title=self.gameType+" Uno Game in "+self.chan.name+" started by "+self.auth.name, description="Say '!uno join' to join")
         embed.add_field(name="Players", value=str(len(self.players)), inline=True)
         embed.add_field(name="Current Turn", value=curPlayer.name, inline=True)
@@ -912,13 +921,10 @@ class The_Game:
         I_Can_Play = False
         topArr = self.topCard[0].split(" ")
         topSimple = self.card_Converter(topArr, Simplify=True)
-        topComplicated = self.card_Converter(topArr)
+        #topComplicated = self.card_Converter(topArr)
         for card in self.playerCards[self.bot.user.id]:
             if card in ["w", "wd4"] or card.split()[0] == topSimple[0] or card.split()[1] == topSimple[1]:
                 I_Can_Play = True
-                print(topArr)
-                print(card)
-                print("___")
                 break
         if not I_Can_Play:
             if len(self.gameCards) == 0 and len(self.discardedCards) == 0:
@@ -928,8 +934,8 @@ class The_Game:
                 await self.players[self.currentTurn].send(self.construct_Update(self.players[self.currentTurn].id))
                 return
             if self.gameType == "High Roller":
-                def quickcheck(card):
-                    return card in ["w", "wd4"] or card.split()[0] == topSimple[0] or card.split()[1] == topSimple[1]
+                def quickcheck(carrd):
+                    return carrd in ["w", "wd4"] or carrd.split()[0] == topSimple[0] or carrd.split()[1] == topSimple[1]
                 broken = False
                 draws = 1
                 self.playerCards[self.bot.user.id] = self.playerCards[self.bot.user.id] + self.card_Gen(1)
@@ -955,9 +961,6 @@ class The_Game:
                 for card in self.playerCards[self.bot.user.id]:
                     if card in ["w", "wd4"] or card.split()[0] == topSimple[0] or card.split()[1] == topSimple[1]:
                         I_Can_Play = True
-                        print(topArr)
-                        print(card)
-                        print("___")
                         break
         if I_Can_Play:
             self.drawCounter = 0
@@ -1013,7 +1016,7 @@ class The_Game:
                 await self.players[self.currentTurn].send(self.construct_Update(self.players[self.currentTurn].id))
             try:
                 if len(self.playerCards[self.bot.user.id]) == 1:
-                    delete_uno = await self.chan.send("UNO! "+self.bot.user.name+" has 1 card left.", delete_after=15)
+                    await self.chan.send("UNO! "+self.bot.user.name+" has 1 card left.", delete_after=15)
                 elif len(self.playerCards[self.bot.user.id]) == 0:
                     del self.BarryBot.UnoGames[self.chan.id]
                     return await self.chan.send("The game is over. "+self.bot.user.name+" has won.")

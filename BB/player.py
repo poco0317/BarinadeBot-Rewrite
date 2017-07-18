@@ -168,7 +168,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
         if position == 1 and not self.players[ctx.guild.id][0].is_playing():
             #make the player play the song and pretty much dont even need to queue it
             sendMessage = "Found and queued **%s** to play as soon as possible!"
-            sendMessage %= (title)
+            sendMessage %= title
             await change_later.edit(content=sendMessage)
             await self.BarryBot.delete_later(change_later, 30)
             self.players[ctx.guild.id][1].temp_message = change_later
@@ -181,7 +181,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
         else:
             #just add the queue and download it but dont do anything else
             try:
-                time_to = await self.players[ctx.guild.id][1].time_to(position, self.players[ctx.guild.id][0])
+                time_to = await self.players[ctx.guild.id][1].time_to(position)
                 sendMessage += " - Max time until it plays: %s"
             except:
                 time_to = "Error"
@@ -211,13 +211,13 @@ class Player: #this represents commands and not an actual player/voicechan objec
         vol = vol/100
         if vol*100 == 0.050305:
             return await ctx.send("The current volume is at "+str(self.players[ctx.guild.id][1].volume * 100)+"%.", delete_after=15)
-        if abs(self.players[ctx.guild.id][1].volume - (vol)) > 0.3 and not is_mod:
+        if abs(self.players[ctx.guild.id][1].volume - vol) > 0.3 and not is_mod:
             raise drasticChange
         if vol*100 > 200 or vol*100 < 1:
             raise volOutOfBounds
         if self.players[ctx.guild.id][0].is_playing():
-            self.players[ctx.guild.id][0].source.volume = (vol)
-        self.players[ctx.guild.id][1].volume = (vol)
+            self.players[ctx.guild.id][0].source.volume = vol
+        self.players[ctx.guild.id][1].volume = vol
         await ctx.send("The volume has been changed to "+str(vol*100)+"%.", delete_after=15)
     
     @commands.command(aliases=["queue", "que", "list"])
@@ -510,7 +510,7 @@ class Playlist:
             #play the first song
             
         return entry, len(self.entries)
-    async def time_to(self, position, player):
+    async def time_to(self, position):
         estimated_time = sum([entry.duration for entry in islice(self.entries, position-1)])
         return datetime.timedelta(seconds=estimated_time)
     

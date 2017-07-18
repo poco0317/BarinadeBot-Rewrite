@@ -45,7 +45,7 @@ async def on_message(message):
         return
     if message.author.id in BarryBot.blacklist:
         return
-    if message.guild == None:
+    if message.guild is None:
         ctx = await bot.get_context(message)
         if ctx.valid:
             args = message.content.split()
@@ -91,6 +91,9 @@ async def on_command_error(ctx, error):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\nSome argument is missing:\n"+ctx.command.usage+"```", delete_after=15)
     if isinstance(error, unimplemented):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
+    if isinstance(error, disabled_command):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
     print(error)

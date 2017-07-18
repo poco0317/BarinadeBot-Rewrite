@@ -53,8 +53,36 @@ class Perms:        #this also includes other things like musicplayer and uno pe
             return True
         raise not_a_mod
         
-    def todo(ctx):
-        pass
+    def has_specific_set_perms(ctx, settings, command_check): #this is intended to be used via an import and not as a decorator function
+        ''' settings is given as an object: self.settings[guild.id] ... it is a ServerSettings object
+        command_check is the setting to check within "settings"
+        settings and command_check are separated pretty much just for organization sake'''
+        found = getattr(settings, command_check) 
+        # this is intended to be used on a per-command basis where the syntax is:
+        # -1 = disabled
+        # 0 = default: using predefined permissions
+        # 1 = mod+ (manage channel)
+        # 2 = admin+ (manage server)
+        # 3 = superadmin+ (administrator permission)
+        # 4 = guild owner
+        
+        #this function either returns True, False (default), or throws an error.
+        if found == "-1":
+            raise disabled_command
+        elif found == "0":
+            return False
+        elif found == "1":
+            return is_guild_mod(ctx)
+        elif found == "2":
+            return is_guild_admin(ctx)
+        elif found == "3":
+            return is_guild_superadmin(ctx)
+        elif found == "4":
+            return is_guild_owner(ctx)
+        else:
+            print("Something went wrong calculating permissions for a specific command: "+settings.serverID+" "+command_check)
+            return False
+    
         #functions for config and server specific checks whether to allow commands to all or just mods/admins
     
         
@@ -70,10 +98,17 @@ class not_a_superadmin(commands.CommandError):
     pass
     
     
+class predefined_permission_error(commands.commandError):
+    def __init__(self):
+        self.message = "..." #on second thought i dont even need this but ill leave it as a reminder of what could have been
+    
+    
 class unimplemented(commands.CommandError):
     def __init__(self):
         self.message = "This command is unimplemented"
-    
+class disabled_command(commands.CommandError):
+    def __init__(self):
+        self.message = "This command has been disabled for your server by an admin."
     
     
     
@@ -209,7 +244,7 @@ class mustDraw(uno_error):
         
 class notYourTurn(uno_error):
     def __init__(self):
-        self.message = "Is it not your turn."
+        self.message = "It is not your turn."
         
 class notACard(uno_error):
     def __init__(self):
