@@ -25,7 +25,7 @@ class Barry(discord.Client):
         self.loop = asyncio.get_event_loop()
         self.bot = bot
         self.downloader = Downloader(self.config.download_path)
-        self.bot.add_cog(MainCommands(self.bot, self.config)) #add the main command class so the bot actually listens
+        self.bot.add_cog(MainCommands(self.bot, self.config)) #add the main command class for laziness sake
         self.bot.add_cog(self) #also a cheaty way to just fit all the commands into this class
         self.bot.add_cog(Uno(self.bot, self.config, self.loop, self))        
         self.bot.add_cog(Player(self.bot, self.config, self.loop, self))
@@ -42,9 +42,16 @@ class Barry(discord.Client):
         
         
         super().__init__()
-
-    
-
+    def guild_settings(ctx): #this is for general use to retrieve the context's server specific settings quickly
+        ''' this just returns a settings object quickly for the context
+        if it returns none then there was something wrong'''
+        try:
+            if ctx.guild.id in self.settings:
+                return self.settings[ctx.guild.id]
+        except: # something is terribly wrong with the context
+            return None
+        finally: # guild is isnt even in the settings file
+            return None
         
     @commands.command()
     async def blacklistme(self, ctx):
