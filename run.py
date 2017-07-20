@@ -96,6 +96,9 @@ async def on_command_error(ctx, error):
     if isinstance(error, disabled_command):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
+    if isinstance(error, commands.BadArgument):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\n"+str(error)+"```", delete_after=15)
     print(error)
     try:
         traceback.print_tb(error.__traceback__)

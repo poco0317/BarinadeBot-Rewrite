@@ -61,7 +61,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         # this is intended to be used on a per-command basis where the syntax is:
         # -1 = disabled
         # 0 = default: using predefined permissions
-        # 1 = mod+ (manage channel)
+        # 1 = mod+ (manage messages)
         # 2 = admin+ (manage server)
         # 3 = superadmin+ (administrator permission)
         # 4 = guild owner
@@ -98,7 +98,7 @@ class not_a_superadmin(commands.CommandError):
     pass
     
     
-class predefined_permission_error(commands.commandError):
+class predefined_permission_error(commands.CommandError):
     def __init__(self):
         self.message = "..." #on second thought i dont even need this but ill leave it as a reminder of what could have been
     

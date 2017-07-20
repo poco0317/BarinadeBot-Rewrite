@@ -60,7 +60,7 @@ class Uno:
         embed.set_footer(text=game.footer, icon_url=self.bot.user.avatar_url)
         embed.set_thumbnail(url=game.colorURL)
         game.messageHolder = await ctx.send(embed=embed)
-        if game.chan != ctx.guild.default_channel and gametype not in ["silent", "quiet", "unannounced"]:
+        if game.chan != ctx.guild.default_channel and gametype.lower() not in ["silent", "quiet", "unannounced"]:
             game.notifyMessage = await ctx.guild.default_channel.send("A game of "+game.gameType+" Uno is starting in "+game.chan.name+". Say '!uno join' in there to join the game.")
             #pass
 
@@ -226,7 +226,7 @@ class Uno:
             await game.rotate_Messages(await game.chan.send(ctx.author.name+" has left the game."))
             await game.update_Message()
             
-    @uno.command(aliases=["remove", "ban", "blacklist"], usage="!uno kick @user")
+    @uno.command(aliases=["remove", "ban", "blacklist"], usage="@user")
     async def kick(self, ctx, *, member : discord.Member):
         '''- Kick a player from the game, also blacklisting them.
         You must mention the player to kick.
@@ -262,7 +262,7 @@ class Uno:
             await game.rotate_Messages(await game.chan.send(member.mention+" was kicked from the game. It is still "+game.players[game.currentTurn].name+"'s turn."))
             await game.update_Message()
             
-    @uno.command(aliases=["unban", "pardon", "free"], usage="!uno allow @user")
+    @uno.command(aliases=["unban", "pardon", "free"], usage="@user")
     async def allow(self, ctx, *, member : discord.Member):
         '''- Remove a player from a game's blacklist.
         You must mention the player to pardon.
@@ -469,7 +469,7 @@ class Uno:
         else:
             await game.bot_play()
         
-    @uno.command(aliases=["p", "plcard", "card", "use", "pclard", "carl"], usage="!uno play value color")
+    @uno.command(aliases=["p", "plcard", "card", "use", "pclard", "carl"], usage="value color")
     async def play(self, ctx, value : str, color : str ):
         '''- Play a card if you have one and it is your turn.
         The command accepts most formats of a given card face and color.
