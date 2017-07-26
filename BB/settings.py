@@ -177,6 +177,9 @@ class ServerSettings:
         # the Commands section does not need to be checked due to its extreme flexibility
         # same with aliases section
 
+        # this function should probably be run every time something is modified and on every bot restart per server
+        # as well as on a server join
+
         example_config_path = os.path.dirname(os.path.dirname(self.config_filepath))+"/example_server.ini"
         configger = configparser.ConfigParser(interpolation=None)
 
@@ -221,10 +224,75 @@ class ServerSettings:
             self.roles = configger["Role Levels"]
             self.config["Role Levels"] = configger["Role Levels"]
 
+        if len(self.commands) != len(configger["Commands"]):
+            for key in configger["Commands"]:
+                if key not in self.commands: #example command missing from final
+                    self.commands[key] = configger["Commands"][key]
+            for key in self.commands:
+                if key not in configger["Commands"]: #example command doesnt exist
+                    del self.commands[key]
+        if len(self.features) != len(configger["Features"]):
+            for key in configger["Features"]:
+                if key not in self.features:
+                    self.features[key] = configger["Features"][key]
+            for key in self.features:
+                if key not in configger["Features"]:
+                    del self.features[key]
+
+
         with open(self.config_filepath, "w") as file:
                 self.config.write(file)
 
+    def add(self, section, name, value):
+        '''Add a setting to a section in the server setting ini
+        Section is the [section]
+        name is the name of the setting
+        value is what to set the setting to
+        Returns false if an error occurs'''
+        try:
+            self.config[section][name] = value
+            with open(self.config_filepath, "w") as file:
+                self.config.write(file)
+            return True
+        except:
+            return False
 
+    def remove(self, section, name, value=None):
+        '''Remove a setting to a section in the server setting ini
+        ... same as add but reversed and doesnt need a value
+        If a value is given, it removes it from the list (assuming it should be a list)'''
+        if value: #this is for removing an element from a list
+            try:
+                if len(self.config[section][name].split()) == 1:
+                    del self.config[section][name]
+                    with open(self.config_filepath, "w") as file:
+                        self.config.write(file)
+                    return True
+                tmpSet = set(self.config[section][name].split())
+                tmpSet.remove(value)
+                self.config[section][name] = " ".join(tmpSet)
+                with open(self.config_filepath, "w") as file:
+                    self.config.write(file)
+                return True
+            except:
+                return False
+        try:
+            del self.config[section][name]
+            with open(self.config_filepath, "w") as file:
+                self.config.write(file)
+            return True
+        except:
+            return False
+
+    def modify(self, section, name, value):
+        ''' change a setting'''
+        try:
+            self.config[section][name] = value
+            with open(self.config_filepath, "w") as file:
+                self.config.write(file)
+            return True
+        except:
+            return False
 
 
     def fallback_vars(self):

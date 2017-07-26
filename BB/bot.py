@@ -53,10 +53,32 @@ class Barry(discord.Client):
         finally: # guild is isnt even in the settings file
             return None
         
-    @commands.command()
+    @commands.command(hidden=True)
     async def blacklistme(self, ctx):
         self.blacklist.add(ctx.message.author.id)
 
+    @commands.command(hidden=True)
+    @commands.check(Perms.is_owner)
+    async def respond(self, ctx, *, words):
+        '''Literally replies with exactly what you said'''
+        await ctx.send(words)
+        await self.logchan.send(words)
+
+    @commands.group(hidden=True)
+    async def cgt(self, ctx):
+        '''g'''
+        print(ctx.command.name)
+
+    @cgt.command(hidden=True)
+    async def rer(self, ctx):
+        '''g'''
+        print(ctx.command.name)
+        print(ctx.command.parent.name)
+        print(ctx.command.qualified_name)
+
+    @commands.command(hidden=True)
+    async def roletest(self, ctx, *, role : discord.Role):
+        print(role)
 
     @commands.command(hidden=True, aliases=["shtudown", "sd", "shtdon", "shutdwon"])
     @commands.check(Perms.is_owner)
@@ -75,7 +97,17 @@ class Barry(discord.Client):
             pass
 
 
-
+    @commands.command(hidden=True)
+    async def pagtest(self, ctx):
+        p = commands.Paginator()
+        for i in range(100):
+            try:
+                p.add_line(line=str(i*i)+"ggggggggggggggggggggggggggggggggggggggggggggg")
+            except:
+                p.close_page()
+                p.add_line(line=str(i*i)+"gdsfdsfdasfdsfdsffdsfsdsdfdfdsfsdfsdsdfsfsfdfs")
+        print(p.pages)
+        await ctx.send(p.pages[0])
 
 
 
@@ -91,9 +123,9 @@ class MainCommands: #command defs can go here as well
     @commands.command(hidden=True)
     @commands.check(Perms.is_owner)
     async def test(self, ctx, *, song : str):
-        #player = await ctx.author.voice.channel.connect()
-        #
-        player.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song), volume=0.5), after=lambda e: print("done", e))
+        player = await ctx.author.voice.channel.connect()
+
+        player.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song), volume=0.1), after=lambda e: print("done", e))
         player.is_playing()
         self.players.add(player)
         

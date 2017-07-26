@@ -5,6 +5,7 @@ from BB.settings import ServerSettings
 from discord.ext import commands
 import asyncio
 import traceback
+import sys
 
 
 print("Barinade Bot Beginning...")
@@ -36,6 +37,7 @@ async def on_ready():
     
     for guild in bot.guilds:
         BarryBot.settings[guild.id] = ServerSettings(guild.id, BarryBot.config)
+        BarryBot.settings[guild.id].verify()
 
 @bot.event
 async def on_message(message):
@@ -89,7 +91,10 @@ async def on_command_error(ctx, error):
         return await ctx.send("```Error\nOnly a superadmin may use this command. Superadmins have the tag 'Administrator' in one of their roles.```", delete_after=15)
     if isinstance(error, commands.MissingRequiredArgument):
         await BarryBot.delete_later(ctx.message, 15)
-        return await ctx.send("```Error\nSome argument is missing:\n"+ctx.command.usage+"```", delete_after=15)
+        try:
+            return await ctx.send("```Error\nSome argument is missing:\n"+ctx.command.usage+"```", delete_after=15)
+        except:
+            return await ctx.send("```Error\nSome argument is missing, but for some reason wasn't defined explicitly. Good luck. (report to dev)```", delete_after=15)
     if isinstance(error, unimplemented):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
@@ -99,11 +104,29 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\n"+str(error)+"```", delete_after=15)
-    print(error)
+    try:
+        if isinstance(error.original, discord.Forbidden):
+            if error.original.status == 403 and error.original.text == "Missing Permissions":
+                await BarryBot.delete_later(ctx.message, 15)
+                return await ctx.send("```Error\nI am missing some type of permission involved in executing this command.```", delete_after=15)
+            else:
+                await BarryBot.delete_later(ctx.message, 15)
+                return await ctx.send("```Error\nThere was a Forbidden error while executing the command. Status: "+str(error.original.status)+" Text:"+error.original.text+"```", delete_after=15)
+    except:
+        print("error")
+    # print(error.with_traceback(error))
+    # print(error.original)
+    # print(dir(error.original))
+    # print(type(error))
+    # print(dir(error))
     try:
         traceback.print_tb(error.__traceback__)
     except:
         pass
+    try:
+        traceback.print_exc()
+    except:
+        print("no traceback")
     
 @bot.event
 async def on_command(ctx):

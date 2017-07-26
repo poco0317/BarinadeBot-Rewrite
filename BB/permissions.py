@@ -16,7 +16,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         
     def is_guild_owner(ctx):
         try:
-            return is_owner(ctx)
+            return Perms.is_owner(ctx)
         except:
             pass
         if ctx.message.author.id != ctx.message.guild.owner.id:
@@ -25,7 +25,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
     
     def is_guild_superadmin(ctx):
         try:
-            return is_guild_owner(ctx)
+            return Perms.is_guild_owner(ctx)
         except:
             pass
         perms = ctx.message.channel.permissions_for(ctx.message.author)
@@ -35,7 +35,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
     
     def is_guild_admin(ctx):
         try:
-            return is_guild_superadmin(ctx)
+            return Perms.is_guild_superadmin(ctx)
         except:
             pass
         perms = ctx.message.channel.permissions_for(ctx.message.author)
@@ -45,7 +45,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         
     def is_guild_mod(ctx):
         try:
-            return is_guild_admin(ctx)
+            return Perms.is_guild_admin(ctx)
         except:
             pass
         perms = ctx.message.channel.permissions_for(ctx.message.author)
@@ -53,11 +53,13 @@ class Perms:        #this also includes other things like musicplayer and uno pe
             return True
         raise not_a_mod
         
-    def has_specific_set_perms(ctx, settings, command_check): #this is intended to be used via an import and not as a decorator function
+    def has_specific_set_perms(ctx, settings, command_check=None): #this is intended to be used via an import and not as a decorator function
         ''' settings is given as an object: self.settings[guild.id] ... it is a ServerSettings object
-        command_check is the setting to check within "settings"
+        command_check is the command name to check (found via context probably)
         settings and command_check are separated pretty much just for organization sake'''
-        found = getattr(settings, command_check) 
+        if command_check is None:
+            command_check = ctx.command.name
+        found = settings.commands[command_check]
         # this is intended to be used on a per-command basis where the syntax is:
         # -1 = disabled
         # 0 = default: using predefined permissions
@@ -67,18 +69,39 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         # 4 = guild owner
         
         #this function either returns True, False (default), or throws an error.
+        roleCheck = -2
+        for role in ctx.author.roles: # this finds the highest permission role the user has according to my system
+                if str(role.id) in settings.roles:
+                    if int(settings.roles[str(role.id)]) > roleCheck:
+                        roleCheck = int(settings.roles[str(role.id)])
+        if roleCheck > -2:
+            found = int(found)
+            if found <= roleCheck and found > 0:
+                return True
+            if found == -1:
+                raise disabled_command
+            if found == 0:
+                return False
+            if found == 1:
+                raise not_a_mod
+            elif found == 2:
+                raise not_an_admin
+            elif found == 3:
+                raise not_a_superadmin
+            elif found == 4:
+                raise not_server_owner
         if found == "-1":
             raise disabled_command
         elif found == "0":
             return False
         elif found == "1":
-            return is_guild_mod(ctx)
+            return Perms.is_guild_mod(ctx)
         elif found == "2":
-            return is_guild_admin(ctx)
+            return Perms.is_guild_admin(ctx)
         elif found == "3":
-            return is_guild_superadmin(ctx)
+            return Perms.is_guild_superadmin(ctx)
         elif found == "4":
-            return is_guild_owner(ctx)
+            return Perms.is_guild_owner(ctx)
         else:
             print("Something went wrong calculating permissions for a specific command: "+settings.serverID+" "+command_check)
             return False
@@ -98,7 +121,7 @@ class not_a_superadmin(commands.CommandError):
     pass
     
     
-class predefined_permission_error(commands.CommandError):
+class specific_permission_error(commands.CommandError):
     def __init__(self):
         self.message = "..." #on second thought i dont even need this but ill leave it as a reminder of what could have been
     

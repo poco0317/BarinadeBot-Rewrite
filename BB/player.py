@@ -18,6 +18,9 @@ from BB.permissions import *
 # im sorry so much of this is a copy paste or close rip of MusicBot's downloader.py
 # with the changes to discord.py rewrite, i couldnt think of a better way to get remote audio
 
+# but anyways heres a way to bass boost something because why not
+# ffmpeg -i "filename..." -af bass=g=999 "outputname"
+
 ytdl_options = {
     'format': 'bestaudio/best',
     'extractaudio': True,
