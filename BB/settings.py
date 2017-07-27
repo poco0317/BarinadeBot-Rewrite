@@ -26,35 +26,95 @@ class Settings:
         self.config = config
         self.loop = loop
         self.BarryBot = BarryBot
-        
-    @commands.group(aliases=["set", "setup"], invoke_without_command=True)
+        # ####
+        # This is a list of commands you are not allowed to modify with !set command
+        self.forbidden = {"commands", "respond"}
+        # ####
+
+
+    @commands.group(name="commands", aliases=["command", "cmd"], invoke_without_command=True)
     @commands.check(Perms.is_guild_superadmin)
-    async def settings(self, ctx):
-        '''The main command for managing the server settings
-        If no extra argument is given, this returns the current settings for the server.
+    async def commandz(self, ctx):
+        '''The main command for managing the server commands
+        If no extra argument is given, this returns a list of all the commands on the server and their assigned permission levels.
         It is extremely recommended to read each !help menu for the commands before using them.'''
         raise unimplemented
 
-    @settings.command(usage="[command name]")
-    async def command(self, ctx, *, commandStr : str):
+    @commandz.command(usage="[command name]", aliases=["perms", "perm"])
+    async def permissions(self, ctx, *, commandStr : str):
         '''- Allows changing the permissions required to use a command
         An alias of a command will work.
 
         You must reply with an integer in the following list when prompted after using the command:
+        -2: Reset the permission for that command
         -1: DISABLE THE COMMAND
-        0: Default to predefined permissions
+        0: Anyone can use the command
         1: Mod - Manage Messages permissions
         2: Admin - Manage Server permissions
         3: Superadmin - Administrator permissions
         4: Server Owner Only
 
-        You cannot set a level of permission higher than your own.
+        You cannot set a level of permission higher than your own. (You must be able to execute the command)
+        Note: If you set a group command (such as !uno) to a harsher setting than its children, you require permission to use the parent command before any of the children.
+            Setting permissions to child commands gets a little complicated behind the scenes, but in a nutshell it still works exactly the same as outlined above.
         '''
+        try:
+            if self.bot.get_command(commandStr):
+                commandName = self.bot.get_command(commandStr).qualified_name
+                checkName = re.sub("\s", "_", commandName)
+            else:
+                raise invalid_command(commandStr)
+            if commandName in self.forbidden:
+                raise specific_error("This command cannot be modified under any circumstances.")
+
+            setting = self.BarryBot.settings[ctx.guild.id]
+            # vvv this thing is meant to just error if it doesnt work out.
+            roleCheck = Perms.has_specific_set_perms_no_cmd(ctx, setting, checkName)
+
+            mainmsg = await ctx.send("Command '"+commandName+"' found. Currently at level "+setting.commands[checkName]+"\nInput an integer from -2 to 4 to change.\nSay anything else to cancel.\nThis will timeout in 15 seconds.")
+
+            def checker(m):
+                try:
+                    return m.channel == ctx.channel and m.author == ctx.author
+                except:
+                    return False
+            try:
+                msg = await self.bot.wait_for("message", check=checker, timeout=30)
+            except asyncio.TimeoutError:
+                await mainmsg.edit(content="Automatic timeout reached.")
+                await self.BarryBot.delete_later(mainmsg)
+                return
+            try:
+                int(msg.content)
+            except:
+                await mainmsg.delete()
+                await msg.delete()
+                return
+
+            changeTo = str(int(msg.content))
+            if changeTo == "-2":
+                changeTo = setting.get_default("Commands", checkName)
+
+            if roleCheck < int(msg.content) or int(changeTo) > roleCheck:
+                raise specific_error("You can't set a level of permission outside of your own permission level.")
+
+
+            if setting.modify("Commands", checkName, changeTo):
+                await mainmsg.delete()
+                await msg.delete()
+                await ctx.send("I have changed command '"+commandName+"' to level "+setting.commands[checkName], delete_after=15)
+            else:
+                await mainmsg.delete()
+                await msg.delete()
+                raise specific_error("I couldn't modify the server settings for some reason...")
+        except:
+            traceback.print_exc()
+
+
         # use wait_for to wait for a specific message containing an integer later on to do the permission thing (TODO)
         # a lot of checks...
-        raise unimplemented
 
-    @settings.command(usage="[command name]")
+    @commandz.command(usage="[command name]")
     async def alias(self, ctx, *, commandStr : str):
         '''- Allows creating or deleting an alias for a command
         If the alias already exists and is NOT hardcoded, then the alias is removed.
@@ -68,7 +128,7 @@ class Settings:
 
     @commands.command(aliases=["feature", "feat"], usage="[feature name]")
     async def features(self, ctx, *, featureStr : str = "Show Features"):
-        '''Display a list of features available to toggle
+        '''The main command for managing the server features (or list them)
         To access settings for a specific feature, use this command again, also supplying the feature name.
 
         If there are no extra settings for a feature, it will be toggled on or off instead of displaying options.
@@ -84,15 +144,15 @@ class Settings:
         # ifs to check what the reply was, what to do... etc
         raise unimplemented
 
-    @commands.group(name="role", aliases=["perm"], invoke_without_command=True)
+    @commands.group(name="roles", aliases=["perm", "role"], invoke_without_command=True)
     async def role_(self, ctx):
         '''The main command for managing the server roles
         This is useful for creating and deleting roles.
         This is useful for granting and taking roles lazily.
         This is the way to assign roles to mod levels (1 - 4)
 
-        Use '!role make Role' to create an empty role at the bottom of the heirarchy.
-        Use '!role make Role 1' to create a role with typical Server Mod permissions - at the bottom of the heirarchy.
+        Use '!role make Role' to create an empty role at the bottom of the hierarchy.
+        Use '!role make Role 1' to create a role with typical Server Mod permissions - at the bottom of the hierarchy.
         Use '!role delete Role' to delete a role.
         Use '!role perm Role 1' to assign a role to a specific mod level without modifying the role itself.
         Use '!role give Role @user' to give a role to a user.
@@ -102,13 +162,13 @@ class Settings:
         Using !role perm is useful for giving a set of commands to a group of people without having to grant them certain permissions.
             Normally, level 1 would require granting a user the ability to delete messages. This is the way around it.
         Permission errors:
-            You can't do any operations involving roles which are at or above your level of permissions or higher than your highest role in the heirarchy.'''
+            You can't do any operations involving roles which are at or above your level of permissions or higher than your highest role in the hierarchy.'''
         raise unimplemented
 
     @role_.command(usage="[Role Name] [Permission Level]")
     async def make(self, ctx, *args):
         '''- Create a Role
-        Simply using this command and not providing any permission level at the end will make an empty role at the bottom of the heirarchy.
+        Simply using this command and not providing any permission level at the end will make an empty role at the bottom of the hierarchy.
         To create a role with more than one word in the name, use quotes.
         Providing a permission level after the role name does not put the role in the group, but does give them typical permissions of that caliber.
             As a result of having those permissions, however, the role will still be in the given permission level.'''
@@ -121,8 +181,8 @@ class Settings:
         Deleting a role with more than one word in the name does NOT require surrounding the name with quotes.'''
         raise unimplemented
 
-    @role_.command(usage="[Role Name] [Permission Level]")
-    async def perm(self, ctx, Role : str, permlevel : int = -2):
+    @role_.command(name="perm", usage="[Role Name] [Permission Level]")
+    async def perm__(self, ctx, Role : str, permlevel : int = -2):
         '''- Set the permission level for a Role
         If the name of the role is more than one word, surround the name in quotes.'''
         # if no permlevel is provided: return the current level
@@ -141,6 +201,21 @@ class Settings:
         raise unimplemented
 
 
+
+
+
+    @commands.group(hidden=True, invoke_without_command=True)
+    async def settings(self, ctx):
+        '''This is for setting some stuff by force if we need to'''
+        raise unimplemented
+    @settings.command()
+    async def verify(self, ctx):
+        '''Verify the server's settings against the example again'''
+        raise unimplemented
+    @settings.command()
+    async def recopy(self, ctx):
+        '''Reset the entire server's settings using the example'''
+        raise unimplemented
         
 class ServerSettings:
     # this is the object which describes each servers settings
@@ -242,6 +317,13 @@ class ServerSettings:
 
         with open(self.config_filepath, "w") as file:
                 self.config.write(file)
+    def get_default(self, section, name):
+        '''Find the default value for a setting'''
+        configger = configparser.ConfigParser(interpolation=None)
+        example_config_path = os.path.dirname(os.path.dirname(self.config_filepath))+"/example_server.ini"
+        configger.read(example_config_path, encoding="utf-8")
+        return configger[section][name]
+
 
     def add(self, section, name, value):
         '''Add a setting to a section in the server setting ini

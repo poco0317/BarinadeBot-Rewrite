@@ -62,7 +62,7 @@ class Barry(discord.Client):
     async def respond(self, ctx, *, words):
         '''Literally replies with exactly what you said'''
         await ctx.send(words)
-        await self.logchan.send(words)
+        #await self.logchan.send(words)
 
     @commands.group(hidden=True)
     async def cgt(self, ctx):

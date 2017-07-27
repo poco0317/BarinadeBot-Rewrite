@@ -1,4 +1,5 @@
 import os
+import re
 import discord
 from discord.ext import commands
 from BB.conf import Conf
@@ -57,31 +58,46 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         ''' settings is given as an object: self.settings[guild.id] ... it is a ServerSettings object
         command_check is the command name to check (found via context probably)
         settings and command_check are separated pretty much just for organization sake'''
+        try:
+            return Perms.is_owner(ctx)
+        except:
+            pass
         if command_check is None:
-            command_check = ctx.command.name
-        found = settings.commands[command_check]
+            if ctx.command.parent:
+                command_check = ctx.command.parent.qualified_name
+            else:
+                command_check = ctx.command.qualified_name
+        command_check = re.sub("\s", "_", command_check)
+        try:
+            found = settings.commands[command_check]
+        except:
+            try:
+                if Perms.is_owner(ctx):
+                    return True
+            except:
+                raise specific_error("You tried to use a command which does not have any permission defined.")
         # this is intended to be used on a per-command basis where the syntax is:
         # -1 = disabled
-        # 0 = default: using predefined permissions
+        # 0 = anyone can use it
         # 1 = mod+ (manage messages)
         # 2 = admin+ (manage server)
         # 3 = superadmin+ (administrator permission)
         # 4 = guild owner
         
         #this function either returns True, False (default), or throws an error.
-        roleCheck = -2
+        roleCheck = -3
         for role in ctx.author.roles: # this finds the highest permission role the user has according to my system
                 if str(role.id) in settings.roles:
                     if int(settings.roles[str(role.id)]) > roleCheck:
                         roleCheck = int(settings.roles[str(role.id)])
-        if roleCheck > -2:
+        if roleCheck > -3:
             found = int(found)
             if found <= roleCheck and found > 0:
                 return True
             if found == -1:
                 raise disabled_command
             if found == 0:
-                return False
+                return True
             if found == 1:
                 raise not_a_mod
             elif found == 2:
@@ -93,7 +109,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         if found == "-1":
             raise disabled_command
         elif found == "0":
-            return False
+            return True
         elif found == "1":
             return Perms.is_guild_mod(ctx)
         elif found == "2":
@@ -102,13 +118,76 @@ class Perms:        #this also includes other things like musicplayer and uno pe
             return Perms.is_guild_superadmin(ctx)
         elif found == "4":
             return Perms.is_guild_owner(ctx)
+        elif found == "5":
+            return Perms.is_owner(ctx)
         else:
             print("Something went wrong calculating permissions for a specific command: "+settings.serverID+" "+command_check)
             return False
-    
+
+    def has_specific_set_perms_no_cmd(ctx, settings, command_check, checkDisabled = False):
+        '''This is the same concept as the one above except its more for checking in really specific cases when making changes to the settings
+        a command being disabled really shouldnt affect this which is why its disabled most of the time by default
+        the error messages are customized particularly for one command but this can be used for more
+        It returns the level of permissions required if it works
+        It errors out if a permission check fails.'''
+        try:
+            Perms.is_owner(ctx)
+            return 5
+        except:
+            pass
+        found = settings.commands[command_check]
+        roleCheck = -3
+        for role in ctx.author.roles:
+            if str(role.id) in settings.roles:
+                if int(settings.roles[str(role.id)]) > roleCheck:
+                    roleCheck = int(settings.roles[str(role.id)])
+        if roleCheck > -3: # this means we will only be checking the fact that they have a role that gives them command-drive permissions (set by an admin)
+            found = int(found)
+            if 0 < found <= roleCheck:
+                return roleCheck
+            if found == -1 and checkDisabled:
+                raise specific_error("This command is disabled.")
+            if found == 0:
+                return "This shouldnt happen"
+            if found == 1:
+                raise specific_error("You must be at least a Server Mod.")
+            if found == 2:
+                raise specific_error("You must be at least a Server Admin.")
+            if found == 3:
+                raise specific_error("You must be at least a Server Superadmin.")
+            if found == 4:
+                raise specific_error("You must be the owner of the server.")
+        if found == "-1" and checkDisabled: # starting here, that means that none of their roles were defined so we have to do this the hard way.
+            raise specific_error("This command is disabled.")
+        elif found == "-1" and not checkDisabled:
+            return int(settings.get_default("Commands", command_check))
+        elif found == "0":
+            return "This shouldnt happen"
+        elif found == "1":
+            try:
+                if Perms.is_guild_mod(ctx):
+                    try:
+                        if Perms.is_guild_admin(ctx):
+                            try:
+                                if Perms.is_guild_superadmin(ctx):
+                                    try:
+                                        if Perms.is_guild_owner(ctx):
+                                            return 4
+                                    except:
+                                        return 3
+                            except:
+                                return 2
+                    except:
+                        return 1
+            except:
+                raise specific_error("You must be at least a Server Mod.")
+        else:
+            return 5
+
+
         #functions for config and server specific checks whether to allow commands to all or just mods/admins
-    
-        
+
+
 class not_owner(commands.CommandError):
     pass
 class not_server_owner(commands.CommandError):
@@ -134,10 +213,17 @@ class disabled_command(commands.CommandError):
         self.message = "This command has been disabled for your server by an admin."
     
     
-    
-    
-    
-    
+
+class cant_do_that(commands.CommandError): # gggggg
+    pass
+class invalid_command(cant_do_that): # oh man i just remembered i dont even need this too
+    def __init__(self, custom):
+        self.message = "No command or any alias with the name '"+custom+"' was found."
+class specific_error(commands.CommandError):
+    def __init__(self, custom):
+        self.message = custom
+
+
 class player_error(commands.CommandError):
     def __init__(self, passed_ctx=None):
         self.message = "This is a generic music player error."
@@ -304,3 +390,4 @@ class outOfBounds(uno_error):
 class joinTwoGames(uno_error):
     def __init__(self):
         self.message = "You can't join two Uno games at once."
+

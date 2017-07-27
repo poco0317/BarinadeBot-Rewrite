@@ -22,6 +22,6 @@ class Moderation:
     @commands.command(aliases=["silence"])
     async def mute(self, ctx):
         ''' unimplemented'''
-        if not Perms.has_specific_set_perms(ctx, self.BarryBot.settings[ctx.guild.id]):
-            Perms.is_guild_mod(ctx)
+        # if not Perms.has_specific_set_perms(ctx, self.BarryBot.settings[ctx.guild.id]):
+        #     Perms.is_guild_mod(ctx)
         raise unimplemented

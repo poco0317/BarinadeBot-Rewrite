@@ -9,7 +9,7 @@ import sys
 
 
 print("Barinade Bot Beginning...")
-bot = commands.Bot(command_prefix="~", description="I am a sunglasses-wearing shiba out and eager to steal your money and provide you services in return")
+bot = commands.Bot(command_prefix="~", description="I am a sunglasses-wearing shiba running out, eager to steal your money and provide you services in return.\nAlso please use the help command on a command you don't get 100%. I promise you will understand.")
 #all the bot events must go in this file
 
 
@@ -62,6 +62,18 @@ async def on_message(message):
     
     await bot.process_commands(message)
 
+@bot.check
+async def check_serverside_perimissions(ctx):
+    '''This is a global command check which checks to see if the command given needs to use specific permissions.
+    tbh this just replaces all forms of command checking unless otherwise noted'''
+    try:
+        if not Perms.has_specific_set_perms(ctx, BarryBot.settings[ctx.guild.id]):
+            return True
+        else:
+            return Perms.has_specific_set_perms(ctx, BarryBot.settings[ctx.guild.id])
+    except KeyError:
+        return True
+
 @bot.event
 async def on_command_error(ctx, error):
     #print(error.__class__.__name__)
@@ -104,6 +116,12 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await BarryBot.delete_later(ctx.message, 15)
         return await ctx.send("```Error\n"+str(error)+"```", delete_after=15)
+    if isinstance(error, cant_do_that):
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
+    if isinstance(error, specific_error): #i am ashamed of how long it took to figure this out
+        await BarryBot.delete_later(ctx.message, 15)
+        return await ctx.send("```Error\n"+error.message+"```", delete_after=15)
     try:
         if isinstance(error.original, discord.Forbidden):
             if error.original.status == 403 and error.original.text == "Missing Permissions":
