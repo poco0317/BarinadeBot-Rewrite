@@ -1,4 +1,8 @@
 import random
+import discord
+import asyncio
+import traceback
+from discord.ext import commands
 
 class EmbedFooter: #for picking a funny embed footer message
     def __init__(self):
@@ -10,3 +14,114 @@ class EmbedFooter: #for picking a funny embed footer message
     def setRandom(self):
         lest = {"Produced with precision", "You ever just put butter on saltine crackers?", "Look at me now", "Filled with love", "Made with love", "Produced with no care", "Produced by the producer", "Produced carefully", "Created by hand", "Created by the hand of God", "Baked to perfection", "Created carefully", "Carelessly made", "Organically produced", "Molded by Picasso himself", "I'm not an artist", "Don't judge", "Dali would have been proud", "Look at my doge face", "how did this get here", "Over 3 man-seconds were spent creating this", "oh god i am not good with computer", "Carefully constructed by an artist", "This was easier than it sounds", "hi"}
         return random.sample(lest, 1)[0]
+
+class GenericPaginator(commands.Paginator):
+    '''
+    because i simply could not understand the use of the other paginators provided by the api (and i think im supposed to write my own)
+
+    heres what a standard usage looks like
+
+    p = GenericPaginator(self.bot, ctx, self.loop)
+    setting = self.BarryBot.settings[ctx.guild.id]
+    for x in setting.commands:
+        p.add_line(line=x + " " + setting.commands[x])
+    msg = await ctx.send(p)
+    p.msg = msg
+    await p.add_reactions()
+    await p.start_waiting()
+    '''
+
+    def __init__(self, bot, ctx, loop):
+        super().__init__()
+        self.totalpages = len(self.pages)
+        self.pagenum = 0
+        self.reactions = False
+        self.lines_on_a_page = 0
+
+        self.msg = None
+        self.bot = bot
+        self.ctx = ctx
+        self.loop = loop
+
+        self.ended = False  # check this in the main bot loop every once in a while to garbage collect
+
+
+    def __repr__(self):
+        self.update_values()
+        if self.totalpages > 1:
+            return "Use the reactions to nagivate the pages."+self.current_page()
+        else:
+            return self.current_page()
+
+    def add_line(self, line='', *, empty=False):
+        super().add_line(line=line, empty=empty)
+        self.lines_on_a_page += 1
+        if self.lines_on_a_page == 20:
+            self.close_page()
+
+    def close_page(self):
+        super().close_page()
+        self.lines_on_a_page = 0
+
+
+
+    def update_values(self):
+        self.totalpages = len(self.pages)
+        if self.totalpages > 1:
+            self.reactions = True
+
+    def current_page(self):
+        return self.pages[self.pagenum]
+
+    async def move_page(self, direction="Up"):
+        ''' alternate: direction="Down"'''
+        if direction == "Up":
+            self.pagenum += 1
+        else:
+            self.pagenum -= 1
+
+        if self.pagenum >= self.totalpages:
+            self.pagenum = 0
+        elif self.pagenum < 0:
+            self.pagenum = self.totalpages - 1
+        await self.msg.edit(content="Use the reactions to nagivate the pages."+self.pages[self.pagenum])
+
+    async def add_reactions(self):
+        if self.totalpages == 1:
+            return False
+        if self.msg is None:
+            return False
+
+        await self.msg.add_reaction("\N{LEFTWARDS BLACK ARROW}")
+        await self.msg.add_reaction("\N{BLACK RIGHTWARDS ARROW}")
+
+    async def start_waiting(self):
+        ''' weird way to make the function not block the entire bot'''
+        if self.totalpages == 1:
+            return False
+        if self.msg is None:
+            return False
+        self.update_values()
+
+        self.loop.create_task(self._really_wait())
+
+    async def _really_wait(self):
+        await asyncio.sleep(0.25)
+        def check(moji, user):
+            return moji.message.id == self.msg.id and user.id == self.ctx.author.id and moji.emoji in ["\N{LEFTWARDS BLACK ARROW}", "\N{BLACK RIGHTWARDS ARROW}"]
+        try:
+            reaction, _ = await self.bot.wait_for("reaction_add", check=check, timeout=30)
+        except:
+            return await self.close_paginator()
+        await self.msg.remove_reaction(reaction.emoji, self.ctx.author)
+        if reaction.emoji == "\N{LEFTWARDS BLACK ARROW}":
+            await self.move_page(direction="not up")
+        else:
+            await self.move_page()
+
+
+        self.loop.create_task(self._really_wait())
+
+    async def close_paginator(self):
+        self.ended = True
+        await self.msg.delete()

@@ -6,7 +6,7 @@ import traceback
 import random
 from discord.ext import commands
 from BB.permissions import *
-from BB.misc import EmbedFooter
+from BB.misc import EmbedFooter, GenericPaginator
 import configparser
 import shutil
 
@@ -38,7 +38,16 @@ class Settings:
         '''The main command for managing the server commands
         If no extra argument is given, this returns a list of all the commands on the server and their assigned permission levels.
         It is extremely recommended to read each !help menu for the commands before using them.'''
-        raise unimplemented
+        p = GenericPaginator(self.bot, ctx, self.loop)
+        setting = self.BarryBot.settings[ctx.guild.id]
+        for x in setting.commands:
+            p.add_line(line=x + " " + setting.commands[x])
+        msg = await ctx.send(p)
+        p.msg = msg
+        await p.add_reactions()
+        await p.start_waiting()
+        # await p.msg.edit(content=p.pages[0])
+        # raise unimplemented
 
     @commandz.command(usage="[command name]", aliases=["perms", "perm"])
     async def permissions(self, ctx, *, commandStr : str):
@@ -109,10 +118,6 @@ class Settings:
                 raise specific_error("I couldn't modify the server settings for some reason...")
         except:
             traceback.print_exc()
-
-
-        # use wait_for to wait for a specific message containing an integer later on to do the permission thing (TODO)
-        # a lot of checks...
 
     @commandz.command(usage="[command name]")
     async def alias(self, ctx, *, commandStr : str):

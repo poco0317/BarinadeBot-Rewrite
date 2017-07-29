@@ -7,7 +7,8 @@ import asyncio
 import traceback
 import sys
 
-
+loop = asyncio.ProactorEventLoop()
+asyncio.set_event_loop(loop)
 print("Barinade Bot Beginning...")
 bot = commands.Bot(command_prefix="~", description="I am a sunglasses-wearing shiba running out, eager to steal your money and provide you services in return.\nAlso please use the help command on a command you don't get 100%. I promise you will understand.")
 #all the bot events must go in this file
@@ -15,7 +16,8 @@ bot = commands.Bot(command_prefix="~", description="I am a sunglasses-wearing sh
 
 
 print("I'm constructing the largest class...")
-BarryBot = Barry(bot)
+gotloop = asyncio.get_event_loop()
+BarryBot = Barry(bot, gotloop)
 
 
 @bot.event

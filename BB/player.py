@@ -7,6 +7,7 @@ import youtube_dl
 import functools
 import datetime
 import traceback
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from collections import deque
 from itertools import islice
@@ -384,6 +385,16 @@ class Player: #this represents commands and not an actual player/voicechan objec
         coppy = [entry for entry in self.players[ctx.guild.id][1].entries]
         print(coppy)
         print(self.players[ctx.guild.id][1].entries)
+
+    @commands.command(hidden=True)
+    async def bboost(self, ctx, *, song:str):
+        ''' force the bot to play a file after first bass boosting it'''
+        try:
+            proc = await asyncio.create_subprocess_exec("ffmpeg", "-loglevel", "quiet", "-y", "-i", song, "-af", "bass=g=15", "output"+song[-4:])
+            await proc.wait()
+            self.players[ctx.guild.id][0].play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio("output"+song[-4:]), volume=0.3), after=lambda e: print("done", e))
+        except:
+            traceback.print_exc()
     
 class Entry:
     def __init__(self, playlist, queuer, name, duration=0, filename=None, url=None, Filepath=None):
