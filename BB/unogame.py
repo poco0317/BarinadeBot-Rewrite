@@ -60,9 +60,11 @@ class Uno:
         embed.set_footer(text=game.footer, icon_url=self.bot.user.avatar_url)
         embed.set_thumbnail(url=game.colorURL)
         game.messageHolder = await ctx.send(embed=embed)
-        if game.chan != ctx.guild.default_channel and gametype.lower() not in ["silent", "quiet", "unannounced"]:
-            game.notifyMessage = await ctx.guild.default_channel.send("A game of "+game.gameType+" Uno is starting in "+game.chan.name+". Say '!uno join' in there to join the game.")
-            #pass
+        # if game.chan != ctx.guild.default_channel and gametype.lower() not in ["silent", "quiet", "unannounced"]:
+        #     game.notifyMessage = await ctx.guild.default_channel.send("A game of "+game.gameType+" Uno is starting in "+game.chan.name+". Say '!uno join' in there to join the game.")
+        #     #pass
+        # todo this is broken
+
 
     @uno.command(hidden=True)
     @commands.check(Perms.is_guild_mod)

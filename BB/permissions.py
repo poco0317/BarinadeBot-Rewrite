@@ -184,8 +184,33 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         else:
             return 5
 
-
-        #functions for config and server specific checks whether to allow commands to all or just mods/admins
+    def get_custom_perms(ctx, settings):
+        ''' Figure out what level of permissions the user from ctx should have.
+        Returns a number of permissions, 5 is bot host, 0 is normie'''
+        try:
+            Perms.is_owner(ctx)
+            return 5
+        except:
+            pass
+        roleCheck = -3
+        for role in ctx.author.roles:
+            if str(role.id) in settings.roles:
+                if int(settings.roles[str(role.id)]) > roleCheck:
+                    roleCheck = int(settings.roles[str(role.id)])
+        permFound = 0
+        try:
+            if Perms.is_guild_mod(ctx):
+                try:
+                    if Perms.is_guild_admin(ctx):
+                        try:
+                            if Perms.is_guild_admin(ctx):
+                                try:
+                                    if Perms.is_guild_owner(ctx): permFound = 4
+                                except: permFound = 3
+                        except: permFound = 2
+                except: permFound = 1
+        except: permFound = 0
+        return max(permFound, roleCheck)
 
 
 class not_owner(commands.CommandError):

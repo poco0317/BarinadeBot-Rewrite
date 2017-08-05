@@ -28,24 +28,31 @@ class Settings:
         self.BarryBot = BarryBot
         # ####
         # This is a list of commands you are not allowed to modify with !set command
-        self.forbidden = {"commands", "respond"}
+        self.forbidden = {"commands", "respond", "commands permissions", "features", "settings"}
         # ####
 
 
     @commands.group(name="commands", aliases=["command", "cmd"], invoke_without_command=True)
     @commands.check(Perms.is_guild_superadmin)
-    async def commandz(self, ctx):
+    async def commandz(self, ctx, *, extraStuff = "this shouldnt ever happen and im too lazy to figure out another way to do it"):
         '''The main command for managing the server commands
         If no extra argument is given, this returns a list of all the commands on the server and their assigned permission levels.
         It is extremely recommended to read each !help menu for the commands before using them.'''
-        p = GenericPaginator(self.bot, ctx, self.loop)
-        setting = self.BarryBot.settings[ctx.guild.id]
-        for x in setting.commands:
-            p.add_line(line=x + " " + setting.commands[x])
-        msg = await ctx.send(p)
-        p.msg = msg
-        await p.add_reactions()
-        await p.start_waiting()
+        if extraStuff != "this shouldnt ever happen and im too lazy to figure out another way to do it":
+            raise specific_error("You have used an invalid syntax with this command.")
+        try:
+            p = GenericPaginator(self.BarryBot, ctx)
+            setting = self.BarryBot.settings[ctx.guild.id]
+            personalPerms = Perms.get_custom_perms(ctx, setting)
+            for x in setting.commands:
+                if int(setting.commands[x]) <= personalPerms:
+                    p.add_line(line=setting.commands[x] + "  -  " + x)
+            msg = await ctx.send("Here is a list of all commands you are allowed to modify with your permissions. Modify them using !cmd perm.\n"+str(p))
+            p.msg = msg
+            await p.add_reactions()
+            await p.start_waiting()
+        except:
+            traceback.print_exc()
         # await p.msg.edit(content=p.pages[0])
         # raise unimplemented
 
@@ -64,72 +71,166 @@ class Settings:
         4: Server Owner Only
 
         You cannot set a level of permission higher than your own. (You must be able to execute the command)
+        Some commands are barred from modification for your safety. Usually these commands require being level 3, a superadmin (The Administrator Tag).
         Note: If you set a group command (such as !uno) to a harsher setting than its children, you require permission to use the parent command before any of the children.
             Setting permissions to child commands gets a little complicated behind the scenes, but in a nutshell it still works exactly the same as outlined above.
         '''
-        try:
-            if self.bot.get_command(commandStr):
-                commandName = self.bot.get_command(commandStr).qualified_name
-                checkName = re.sub("\s", "_", commandName)
-            else:
+        setting = self.BarryBot.settings[ctx.guild.id]
+        if self.bot.get_command(commandStr):
+            commandName = self.bot.get_command(commandStr).qualified_name
+            checkName = re.sub("\s", "_", commandName)
+        else:
+            commandName = setting.get_command_from_alias(commandStr)
+            if commandName is None:
                 raise invalid_command(commandStr)
-            if commandName in self.forbidden:
-                raise specific_error("This command cannot be modified under any circumstances.")
+            checkName = re.sub("\s", "_", commandName)
+        if commandName in self.forbidden:
+            raise specific_error("This command cannot be modified under any circumstances.")
 
-            setting = self.BarryBot.settings[ctx.guild.id]
-            # vvv this thing is meant to just error if it doesnt work out.
-            roleCheck = Perms.has_specific_set_perms_no_cmd(ctx, setting, checkName)
+        # vvv this thing is meant to just error if it doesnt work out.
+        roleCheck = Perms.has_specific_set_perms_no_cmd(ctx, setting, checkName)
 
-            mainmsg = await ctx.send("Command '"+commandName+"' found. Currently at level "+setting.commands[checkName]+"\nInput an integer from -2 to 4 to change.\nSay anything else to cancel.\nThis will timeout in 15 seconds.")
+        mainmsg = await ctx.send("Command '"+commandName+"' found. Currently at level "+setting.commands[checkName]+"\nInput an integer from -2 to 4 to change.\nSay anything else to cancel.\nThis will timeout in 15 seconds.")
 
-            def checker(m):
-                try:
-                    return m.channel == ctx.channel and m.author == ctx.author
-                except:
-                    return False
+        def checker(m):
             try:
-                msg = await self.bot.wait_for("message", check=checker, timeout=30)
-            except asyncio.TimeoutError:
-                await mainmsg.edit(content="Automatic timeout reached.")
-                await self.BarryBot.delete_later(mainmsg)
-                return
-            try:
-                int(msg.content)
+                return m.channel == ctx.channel and m.author == ctx.author
             except:
-                await mainmsg.delete()
-                await msg.delete()
-                return
-
-            changeTo = str(int(msg.content))
-            if changeTo == "-2":
-                changeTo = setting.get_default("Commands", checkName)
-
-            if roleCheck < int(msg.content) or int(changeTo) > roleCheck:
-                raise specific_error("You can't set a level of permission outside of your own permission level.")
-
-
-            if setting.modify("Commands", checkName, changeTo):
-                await mainmsg.delete()
-                await msg.delete()
-                await ctx.send("I have changed command '"+commandName+"' to level "+setting.commands[checkName], delete_after=15)
-            else:
-                await mainmsg.delete()
-                await msg.delete()
-                raise specific_error("I couldn't modify the server settings for some reason...")
+                return False
+        try:
+            msg = await self.bot.wait_for("message", check=checker, timeout=30)
+        except asyncio.TimeoutError:
+            await mainmsg.edit(content="Automatic timeout reached.")
+            await self.BarryBot.delete_later(mainmsg)
+            return
+        try:
+            int(msg.content)
         except:
-            traceback.print_exc()
+            await mainmsg.delete()
+            await msg.delete()
+            return
+
+        changeTo = str(int(msg.content))
+        if changeTo == "-2":
+            changeTo = setting.get_default("Commands", checkName)
+
+        if roleCheck < int(msg.content) or int(changeTo) > roleCheck:
+            raise specific_error("You can't set a level of permission outside of your own permission level.")
+
+
+        if setting.modify("Commands", checkName, changeTo):
+            await mainmsg.delete()
+            await msg.delete()
+            theChange = setting.commands[checkName]
+            if theChange == "5":
+                changeStr = "5 (Bot Host Only)"
+            elif theChange == "4":
+                changeStr = "4 (Server Owner Only)"
+            elif theChange == "3":
+                changeStr = "3 (Superadmins and Up)"
+            elif theChange == "2":
+                changeStr = "2 (Admins and Up)"
+            elif theChange == "1":
+                changeStr = "1 (Server Mods and Up)"
+            elif theChange == "0":
+                changeStr = "0 (Anyone)"
+            elif theChange == "-1":
+                changeStr = "-1 (DISABLED COMMAND)"
+            else:
+                changeStr = "invalid"
+            await ctx.send("I have changed command '"+commandName+"' to level "+changeStr, delete_after=15)
+        else:
+            await mainmsg.delete()
+            await msg.delete()
+            raise specific_error("I couldn't modify the server settings for some reason...")
 
     @commandz.command(usage="[command name]")
-    async def alias(self, ctx, *, commandStr : str):
+    async def alias(self, ctx, *, commandStr : str = "give me the list"):
         '''- Allows creating or deleting an alias for a command
+        Using this command with no argument will provide a list of aliases.
         If the alias already exists and is NOT hardcoded, then the alias is removed.
-        The alias must be one word.
+        The alias must contain no spaces.
+        Note: These aliases work 'globally' in a way, meaning that an alias set for a subcommand, such as 'poop' for !uno play, would work as !poop
+        Any capitalization in the alias will be removed.
+        Quirk Note: It is possible to have an alias match a hardcoded alias for a subcommand (like !play doing something different than !uno play)
 
         You must reply with the alias after using this command to finish.'''
         # use wait_for to wait for specific message
         # a lot of checks...
         # there will be server specific aliases for each command, captured by the on_message event (it may get really complicated to invoke)
-        raise unimplemented
+        if commandStr == "give me the list":
+            return await ctx.send("heres th elist")
+            #give the list
+
+        setting = self.BarryBot.guild_settings(ctx)
+        if self.bot.get_command(commandStr):
+            commandName = self.bot.get_command(commandStr).qualified_name
+            checkName = re.sub("\s", "_", commandName)
+        else:
+            checkName = None
+            for c,a in setting.aliases.items():
+                if commandStr in a.split():
+                    checkName = c
+                    break
+            if checkName is None:
+                raise invalid_command(commandStr)
+
+        def check(message):
+            return message.author.id == ctx.author.id and len(message.content.split()) == 1
+
+        extraStr = ""
+        if checkName in setting.aliases:
+            extraStr = "\nHere is the current list of aliases for this command:```css\n"
+            for a in setting.aliases[checkName].split():
+                extraStr = extraStr + "\n" + a
+            extraStr = extraStr + "```"
+
+
+        delete_later = await ctx.send("Reply with what you want your alias to be.\nDo not use any spaces."+extraStr)
+
+        try:
+            msg = await self.bot.wait_for("message", check=check, timeout=15)
+        except:
+            return await delete_later.delete()
+
+        msgW = msg.content.lower().split()[0]
+
+        await delete_later.delete()
+        if self.bot.get_command(msgW):
+            await msg.delete()
+            return await ctx.send("That is already a hardcoded name or alias for another command ("+self.bot.get_command(msgW).name+").", delete_after=15)
+
+
+        theBigList = set()
+        for _, v in setting.aliases.items():
+            theBigList.update(v.split())
+        if checkName in setting.aliases:
+            theList = set(setting.aliases[checkName].split())
+            if msgW in theList:
+                setting.remove("Aliases", checkName, value=msgW)
+                await ctx.send("I have removed "+msgW+" from the aliases of "+checkName, delete_after=15)
+            else:
+                if msgW in theBigList:
+                    for cmd in setting.aliases:
+                        if msgW in setting.aliases[cmd].split():
+                            foundCmd = cmd
+                            break
+                    await msg.delete()
+                    return await ctx.send("That is already an alias for another command ("+foundCmd+").", delete_after=15)
+                theList.add(msgW)
+                await ctx.send("I have added "+msgW+" as an alias to "+checkName, delete_after=15)
+                setting.aliases[checkName] = " ".join(theList)
+        else:
+            setting.add("Aliases", checkName, msgW)
+            await ctx.send("I have added "+msgW+" as an alias to "+checkName, delete_after=15)
+        with open(setting.config_filepath, "w") as file:
+            setting.config.write(file)
+        self.BarryBot.settings[ctx.guild.id] = setting
+        await msg.delete()
+
+
+
+
 
     @commands.command(aliases=["feature", "feat"], usage="[feature name]")
     async def features(self, ctx, *, featureStr : str = "Show Features"):
@@ -210,17 +311,38 @@ class Settings:
 
 
     @commands.group(hidden=True, invoke_without_command=True)
+    @commands.check(Perms.is_guild_superadmin)
     async def settings(self, ctx):
         '''This is for setting some stuff by force if we need to'''
         raise unimplemented
+
     @settings.command()
     async def verify(self, ctx):
         '''Verify the server's settings against the example again'''
-        raise unimplemented
+        self.BarryBot.guild_settings(ctx).verify()
+        await ctx.send("I have made my best attempts to check for anything missing between the default config and this server's. Everything should be fixed.", delete_after=15)
+
     @settings.command()
     async def recopy(self, ctx):
         '''Reset the entire server's settings using the example'''
-        raise unimplemented
+        try:
+            defaults = configparser.ConfigParser(interpolation=None)
+            serversettings = self.BarryBot.guild_settings(ctx)
+            default_path = os.path.dirname(os.path.dirname(serversettings.config_filepath))+"/example_server.ini"
+
+            defaults.read(default_path, encoding='utf-8')
+
+            serversettings.features = defaults["Features"]
+            serversettings.moderation = defaults["Moderation"]
+            serversettings.commands = defaults["Commands"]
+            serversettings.aliases = defaults["Aliases"]
+            serversettings.roles = defaults["Role Levels"]
+
+            with open(serversettings.config_filepath, "w") as file:
+                serversettings.config.write(file)
+            await ctx.send("All server settings have been reset to default.", delete_after=15)
+        except:
+            traceback.print_exc()
         
 class ServerSettings:
     # this is the object which describes each servers settings
@@ -250,6 +372,7 @@ class ServerSettings:
             self.aliases = self.config["Aliases"]           # Server Command Aliases
             self.roles = self.config["Role Levels"]         # Server Role Permissions
         except:
+            print("I had to verify a server's settings: "+self.serverID)
             self.verify()
 
     def verify(self):
@@ -328,6 +451,20 @@ class ServerSettings:
         example_config_path = os.path.dirname(os.path.dirname(self.config_filepath))+"/example_server.ini"
         configger.read(example_config_path, encoding="utf-8")
         return configger[section][name]
+
+    def get_command_from_alias(self, name, format=True):
+        '''Find the real command name for an alias in the bot.
+        This must be a last resort after having used .get_command(name)'''
+        checkName = None
+        for c,a in self.aliases.items():
+            if name in a.split():
+                checkName = c
+                break
+        if checkName is None:
+            return None
+        if format:
+            return re.sub("_", " ", checkName)
+        return checkName
 
 
     def add(self, section, name, value):

@@ -33,7 +33,7 @@ class Barry(discord.Client):
         self.bot.add_cog(Moderation(self.bot, self.config, self.loop, self))
         self.UnoGames = {}
         self.settings = {}
-        
+        self.paginators = set()
         
         self.logchan = None
         
@@ -42,15 +42,14 @@ class Barry(discord.Client):
         
         
         super().__init__()
-    def guild_settings(ctx): #this is for general use to retrieve the context's server specific settings quickly
+    def guild_settings(self, ctx): #this is for general use to retrieve the context's server specific settings quickly
         ''' this just returns a settings object quickly for the context
         if it returns none then there was something wrong'''
         try:
             if ctx.guild.id in self.settings:
                 return self.settings[ctx.guild.id]
         except: # something is terribly wrong with the context
-            return None
-        finally: # guild is isnt even in the settings file
+            print("something broke")
             return None
         
     @commands.command(hidden=True)
@@ -63,6 +62,11 @@ class Barry(discord.Client):
         '''Literally replies with exactly what you said'''
         await ctx.send(words)
         #await self.logchan.send(words)
+
+    @commands.command()
+    async def report(self, ctx, *, words):
+        ''' Reports anything back to a server that the developers of this bot can see. '''
+        await self.logchan.send("REPORT - "+ctx.author.name+" in "+ctx.guild.name+": "+words)
 
     @commands.group(hidden=True)
     async def cgt(self, ctx):
@@ -95,6 +99,29 @@ class Barry(discord.Client):
             await message.delete(reason="Automatic deletion by Bot.")
         except:
             pass
+
+    async def check_looper_slow(self):
+        ''' This is the function which holds a loop that begins in on_ready and runs every 5 minutes'''
+        for paginator in self.paginators:
+            if paginator.ended:
+                self.paginators.remove(paginator)
+
+
+
+        await asyncio.sleep(300)
+        self.loop.create_task(self.check_looper_slow())
+
+    async def check_looper_fast(self):
+        ''' This is the function which holds a loop that begins in on_ready and runs every 30 seconds'''
+
+
+
+        await asyncio.sleep(30)
+        self.loop.create_task(self.check_looper_fast())
+
+
+
+
 
 
     @commands.command(hidden=True)

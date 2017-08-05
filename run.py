@@ -6,6 +6,7 @@ from discord.ext import commands
 import asyncio
 import traceback
 import sys
+import re
 
 loop = asyncio.ProactorEventLoop()
 asyncio.set_event_loop(loop)
@@ -40,6 +41,12 @@ async def on_ready():
     for guild in bot.guilds:
         BarryBot.settings[guild.id] = ServerSettings(guild.id, BarryBot.config)
         BarryBot.settings[guild.id].verify()
+    try:
+        BarryBot.loop.create_task(BarryBot.check_looper_fast())
+        BarryBot.loop.create_task(BarryBot.check_looper_slow())
+    except:
+        traceback.print_exc()
+
 
 @bot.event
 async def on_message(message):
@@ -61,11 +68,31 @@ async def on_message(message):
             except:
                 pass
         return
-    
+
+    if message.content.startswith(bot.command_prefix):
+        ctx = await bot.get_context(message)
+        setting = BarryBot.settings[message.guild.id]
+        foundCommand = None
+        for c,a in setting.aliases.items():
+            if message.content[1:].split()[0] in a.split():
+                foundCommand = c
+                break
+        if foundCommand:
+            finalCommand = re.sub("_", " ", foundCommand)
+            invoker = bot.get_command(finalCommand)
+            try:
+                await invoker.invoke(ctx)
+            except Exception as e:
+                await on_command_error(ctx, e)
+            return
     await bot.process_commands(message)
 
+@bot.event
+async def on_error(event, *args, **kwargs):
+    print("There was an error related directly to a built in event that was uncaught by on_command_error. Here is the event: "+event)
+
 @bot.check
-async def check_serverside_perimissions(ctx):
+async def check_serverside_permissions(ctx):
     '''This is a global command check which checks to see if the command given needs to use specific permissions.
     tbh this just replaces all forms of command checking unless otherwise noted'''
     try:
@@ -157,6 +184,7 @@ async def on_command(ctx):
         
 @bot.event
 async def on_guild_join(guild):
+    # todo this is broken because guild.create_invite is dead
     try:
         newInvite = await guild.create_invite(reason="Callback invite for test purposes. Only the bot host can see this.")
         finalStr = "Invite: "+str(newInvite)
