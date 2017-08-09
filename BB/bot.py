@@ -44,7 +44,9 @@ class Barry(discord.Client):
         super().__init__()
     def guild_settings(self, ctx): #this is for general use to retrieve the context's server specific settings quickly
         ''' this just returns a settings object quickly for the context
-        if it returns none then there was something wrong'''
+        if it returns none then there was something wrong
+        WARNING: this should not be used if modifications to server settings need to be done.
+        '''
         try:
             if ctx.guild.id in self.settings:
                 return self.settings[ctx.guild.id]
@@ -65,7 +67,7 @@ class Barry(discord.Client):
 
     @commands.command()
     async def report(self, ctx, *, words):
-        ''' Reports anything back to a server that the developers of this bot can see. '''
+        ''' Report an issue to the developers '''
         await self.logchan.send("REPORT - "+ctx.author.name+" in "+ctx.guild.name+": "+words)
 
     @commands.group(hidden=True)
@@ -102,9 +104,12 @@ class Barry(discord.Client):
 
     async def check_looper_slow(self):
         ''' This is the function which holds a loop that begins in on_ready and runs every 5 minutes'''
+        to_remove_Paginators = set()
         for paginator in self.paginators:
             if paginator.ended:
-                self.paginators.remove(paginator)
+                to_remove_Paginators.add(paginator)
+        for nator in to_remove_Paginators:
+            self.paginators.remove(nator)
 
 
 

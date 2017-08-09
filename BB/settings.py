@@ -137,7 +137,7 @@ class Settings:
             elif theChange == "-1":
                 changeStr = "-1 (DISABLED COMMAND)"
             else:
-                changeStr = "invalid"
+                changeStr = "invalid (SOMETHING IS BROKEN)"
             await ctx.send("I have changed command '"+commandName+"' to level "+changeStr, delete_after=15)
         else:
             await mainmsg.delete()
@@ -155,12 +155,18 @@ class Settings:
         Quirk Note: It is possible to have an alias match a hardcoded alias for a subcommand (like !play doing something different than !uno play)
 
         You must reply with the alias after using this command to finish.'''
-        # use wait_for to wait for specific message
-        # a lot of checks...
-        # there will be server specific aliases for each command, captured by the on_message event (it may get really complicated to invoke)
         if commandStr == "give me the list":
-            return await ctx.send("heres th elist")
-            #give the list
+            p = GenericPaginator(self.BarryBot, ctx, page_header = "Command || Alias")
+            setting = self.BarryBot.settings[ctx.guild.id]
+            for x in setting.aliases:
+                p.add_line(line=x + " - " + ", ".join(setting.aliases[x].split()))
+            if p.lines_on_a_page == 0 and p.pagenum == 0:
+                p.add_line(line="There are no aliases!")
+            msg = await ctx.send("Here is a list of all the custom aliases on the server. Modify them using !cmd alias.\n"+str(p))
+            p.msg = msg
+            await p.add_reactions()
+            await p.start_waiting()
+            return
 
         setting = self.BarryBot.guild_settings(ctx)
         if self.bot.get_command(commandStr):
@@ -186,7 +192,7 @@ class Settings:
             extraStr = extraStr + "```"
 
 
-        delete_later = await ctx.send("Reply with what you want your alias to be.\nDo not use any spaces."+extraStr)
+        delete_later = await ctx.send("Reply with what you want your alias to be.\nDo not use any spaces or special characters."+extraStr)
 
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=15)
@@ -199,7 +205,9 @@ class Settings:
         if self.bot.get_command(msgW):
             await msg.delete()
             return await ctx.send("That is already a hardcoded name or alias for another command ("+self.bot.get_command(msgW).name+").", delete_after=15)
-
+        if re.search("[^a-zA-Z0-9]", msgW):
+            await msg.delete()
+            return await ctx.send("You tried to use a special character. Start over.", delete_after=15)
 
         theBigList = set()
         for _, v in setting.aliases.items():
@@ -319,7 +327,7 @@ class Settings:
     @settings.command()
     async def verify(self, ctx):
         '''Verify the server's settings against the example again'''
-        self.BarryBot.guild_settings(ctx).verify()
+        self.BarryBot.settings[ctx.guild.id].verify()
         await ctx.send("I have made my best attempts to check for anything missing between the default config and this server's. Everything should be fixed.", delete_after=15)
 
     @settings.command()
@@ -340,6 +348,7 @@ class Settings:
 
             with open(serversettings.config_filepath, "w") as file:
                 serversettings.config.write(file)
+            self.BarryBot.settings[ctx.guild.id] = serversettings
             await ctx.send("All server settings have been reset to default.", delete_after=15)
         except:
             traceback.print_exc()
@@ -394,57 +403,69 @@ class ServerSettings:
                     self.config["Features"][key] = value
         except:
             self.config["Features"] = configger["Features"]
+            print("Verify error: Missing feature could not be defaulted, all server features reset.")
         try:
             for key, value in configger["Moderation"].items():
                 if key not in self.config["Moderation"]:
                     self.config["Moderation"][key] = value
         except:
             self.config["Moderation"] = configger["Moderation"]
+            print("Verify error: Missing moderation setting could not be defaulted, all server moderation settings reset.")
 
         try:
             self.features
         except:
             self.features = configger["Features"]
             self.config["Features"] = configger["Features"]
+            print("Verify error: Features do not exist on this server. Reset to default.")
         try:
             self.moderation
         except:
             self.moderation = configger["Moderation"]
             self.config["Moderation"] = configger["Moderation"]
+            print("Verify error: Moderation does not exist on this server. Reset to default.")
         try:
             self.commands
         except:
             self.commands = configger["Commands"]
             self.config["Commands"] = configger["Commands"]
+            print("Verify error: Commands does not exist on this server. Reset to default.")
         try:
             self.aliases
         except:
             self.aliases = configger["Aliases"]
             self.config["Aliases"] = configger["Aliases"]
+            print("Verify error: Aliases do not exist on this server. Reset to default.")
         try:
             self.roles
         except:
             self.roles = configger["Role Levels"]
             self.config["Role Levels"] = configger["Role Levels"]
+            print("Verify error: Roles do not exist on this server. Reset to default.")
 
         if len(self.commands) != len(configger["Commands"]):
             for key in configger["Commands"]:
                 if key not in self.commands: #example command missing from final
                     self.commands[key] = configger["Commands"][key]
+                    print("Set default command for missing: "+key)
             for key in self.commands:
                 if key not in configger["Commands"]: #example command doesnt exist
                     del self.commands[key]
+                    print("Deleted depreciated command: "+key)
         if len(self.features) != len(configger["Features"]):
             for key in configger["Features"]:
                 if key not in self.features:
                     self.features[key] = configger["Features"][key]
+                    print("Set default feature for missing: "+key)
             for key in self.features:
                 if key not in configger["Features"]:
                     del self.features[key]
+                    print("Deleted depreciated feature: "+key)
 
 
         with open(self.config_filepath, "w") as file:
                 self.config.write(file)
+        print("Verify done.")
     def get_default(self, section, name):
         '''Find the default value for a setting'''
         configger = configparser.ConfigParser(interpolation=None)

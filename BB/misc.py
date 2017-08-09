@@ -31,7 +31,7 @@ class GenericPaginator(commands.Paginator):
     await p.start_waiting()
     '''
 
-    def __init__(self, bot, ctx):
+    def __init__(self, bot, ctx, page_header=None):
         super().__init__()
         self.totalpages = len(self.pages)
         self.pagenum = 0
@@ -43,10 +43,15 @@ class GenericPaginator(commands.Paginator):
         self.bot = bot.bot
         self.ctx = ctx
         self.loop = bot.loop
+        self.page_header = page_header
 
         self.BarryBot.paginators.add(self)
         self.ended = False  # check this in the main bot loop every once in a while to garbage collect
                             # check BarryBot.Paginators (made of self) and delete the ones which have self.ended
+        if self.page_header is not None:
+            self.add_line(line=self.page_header)
+            self.lines_on_a_page = 0
+
 
 
     def __repr__(self):
@@ -64,6 +69,8 @@ class GenericPaginator(commands.Paginator):
 
     def close_page(self):
         super().close_page()
+        if self.page_header is not None:
+            self.add_line(line=self.page_header)
         self.lines_on_a_page = 0
 
 
