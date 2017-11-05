@@ -66,7 +66,8 @@ async def on_message(message):
                         await bot.process_commands(message)
                         return
             except:
-                pass
+                traceback.print_exc()
+
         return
 
     if message.content.startswith(bot.command_prefix):
@@ -100,8 +101,11 @@ async def check_serverside_permissions(ctx):
             return True
         else:
             return Perms.has_specific_set_perms(ctx, BarryBot.settings[ctx.guild.id])
-    except KeyError:
+    except KeyError:        # There was an error because something relating to settings broke: fall to defaults
         return True
+    except AttributeError:  # There was an error because this is a private message: fall to defaults
+        return True
+
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -177,16 +181,16 @@ async def on_command_error(ctx, error):
     
 @bot.event
 async def on_command(ctx):
+    # todo make this a feature which can be toggled per server
     try:
         await BarryBot.delete_later(ctx.message, 20)
     except:
         pass
-        
 @bot.event
 async def on_guild_join(guild):
     # todo this is broken because guild.create_invite is dead
     try:
-        newInvite = await guild.create_invite(reason="Callback invite for test purposes. Only the bot host can see this.")
+        newInvite = await guild.create_invite()
         finalStr = "Invite: "+str(newInvite)
     except:
         try:

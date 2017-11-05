@@ -269,8 +269,8 @@ class alreadyLeft(player_error):
         
 class entryFailure(player_error):
     def __init__(self):
-        self.message = "An error occurred when trying to add the file to the queue.\nThe most likely issue is that the video was not found.\nIn a rare case, the file would still be added to the queue with no information."
-        
+        self.message = "An error occurred when trying to add the file to the queue.\nThe most likely issue is that the video was not found.\nIn a rare case, the file would still be added to the queue with no information.\nThe most frequent cause of this error is an outdated library. Contact an admin or !report this issue in detail."
+
 class unsupportedPlaylist(player_error):
     def __init__(self):
         self.message = "Playlist queueing is currently unsupported."

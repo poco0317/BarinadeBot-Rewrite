@@ -31,8 +31,8 @@ class GenericPaginator(commands.Paginator):
     await p.start_waiting()
     '''
 
-    def __init__(self, bot, ctx, page_header=None):
-        super().__init__()
+    def __init__(self, bot, ctx, page_header=None, markdown="Error", timeout=30):
+        super().__init__(prefix="```"+markdown)
         self.totalpages = len(self.pages)
         self.pagenum = 0
         self.reactions = False
@@ -43,7 +43,9 @@ class GenericPaginator(commands.Paginator):
         self.bot = bot.bot
         self.ctx = ctx
         self.loop = bot.loop
-        self.page_header = page_header
+        self.page_header = page_header  # for clarity per page
+        self.markdown = markdown        # for coloring overall
+        self.timeout = timeout          # for timing out after no reaction received
 
         self.BarryBot.paginators.add(self)
         self.ended = False  # check this in the main bot loop every once in a while to garbage collect
@@ -120,7 +122,7 @@ class GenericPaginator(commands.Paginator):
         def check(moji, user):
             return moji.message.id == self.msg.id and user.id == self.ctx.author.id and moji.emoji in ["\N{LEFTWARDS BLACK ARROW}", "\N{BLACK RIGHTWARDS ARROW}"]
         try:
-            reaction, _ = await self.bot.wait_for("reaction_add", check=check, timeout=30)
+            reaction, _ = await self.bot.wait_for("reaction_add", check=check, timeout=self.timeout)
         except:
             return await self.close_paginator()
         await self.msg.remove_reaction(reaction.emoji, self.ctx.author)

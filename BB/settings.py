@@ -34,29 +34,22 @@ class Settings:
 
     @commands.group(name="commands", aliases=["command", "cmd"], invoke_without_command=True)
     @commands.check(Perms.is_guild_superadmin)
-    async def commandz(self, ctx, *, extraStuff = "this shouldnt ever happen and im too lazy to figure out another way to do it"):
+    async def commandz(self, ctx):
         '''The main command for managing the server commands
         If no extra argument is given, this returns a list of all the commands on the server and their assigned permission levels.
         It is extremely recommended to read each !help menu for the commands before using them.'''
-        if extraStuff != "this shouldnt ever happen and im too lazy to figure out another way to do it":
-            raise specific_error("You have used an invalid syntax with this command.")
-        try:
-            p = GenericPaginator(self.BarryBot, ctx)
-            setting = self.BarryBot.settings[ctx.guild.id]
-            personalPerms = Perms.get_custom_perms(ctx, setting)
-            for x in setting.commands:
-                if int(setting.commands[x]) <= personalPerms:
-                    p.add_line(line=setting.commands[x] + "  -  " + x)
-            msg = await ctx.send("Here is a list of all commands you are allowed to modify with your permissions. Modify them using !cmd perm.\n"+str(p))
-            p.msg = msg
-            await p.add_reactions()
-            await p.start_waiting()
-        except:
-            traceback.print_exc()
-        # await p.msg.edit(content=p.pages[0])
-        # raise unimplemented
+        p = GenericPaginator(self.BarryBot, ctx, markdown="css")
+        setting = self.BarryBot.settings[ctx.guild.id]
+        personalPerms = Perms.get_custom_perms(ctx, setting)
+        for x in setting.commands:
+            if int(setting.commands[x]) <= personalPerms:
+                p.add_line(line=setting.commands[x] + "  -  " + x)
+        msg = await ctx.send("Here is a list of all commands you are allowed to modify with your permissions. Modify them using !cmd perm.\n"+str(p))
+        p.msg = msg
+        await p.add_reactions()
+        await p.start_waiting()
 
-    @commandz.command(usage="[command name]", aliases=["perms", "perm"])
+    @commandz.command(usage="[command name]", aliases=["perms", "perm", "p"])
     async def permissions(self, ctx, *, commandStr : str):
         '''- Allows changing the permissions required to use a command
         An alias of a command will work.
@@ -74,6 +67,7 @@ class Settings:
         Some commands are barred from modification for your safety. Usually these commands require being level 3, a superadmin (The Administrator Tag).
         Note: If you set a group command (such as !uno) to a harsher setting than its children, you require permission to use the parent command before any of the children.
             Setting permissions to child commands gets a little complicated behind the scenes, but in a nutshell it still works exactly the same as outlined above.
+        Another Note: Use the !role perm command to give a specific role these permissions without giving them things like Manage Server.
         '''
         setting = self.BarryBot.settings[ctx.guild.id]
         if self.bot.get_command(commandStr):
@@ -144,7 +138,7 @@ class Settings:
             await msg.delete()
             raise specific_error("I couldn't modify the server settings for some reason...")
 
-    @commandz.command(usage="[command name]")
+    @commandz.command(usage="[command name]", aliases=["a"])
     async def alias(self, ctx, *, commandStr : str = "give me the list"):
         '''- Allows creating or deleting an alias for a command
         Using this command with no argument will provide a list of aliases.
@@ -156,13 +150,13 @@ class Settings:
 
         You must reply with the alias after using this command to finish.'''
         if commandStr == "give me the list":
-            p = GenericPaginator(self.BarryBot, ctx, page_header = "Command || Alias")
+            p = GenericPaginator(self.BarryBot, ctx, page_header = "Command || Alias", markdown="css")
             setting = self.BarryBot.settings[ctx.guild.id]
             for x in setting.aliases:
                 p.add_line(line=x + " - " + ", ".join(setting.aliases[x].split()))
             if p.lines_on_a_page == 0 and p.pagenum == 0:
                 p.add_line(line="There are no aliases!")
-            msg = await ctx.send("Here is a list of all the custom aliases on the server. Modify them using !cmd alias.\n"+str(p))
+            msg = await ctx.send("Here is a list of all the custom aliases on the server. Modify them using !cmd alias [commandname].\n"+str(p))
             p.msg = msg
             await p.add_reactions()
             await p.start_waiting()
@@ -180,9 +174,10 @@ class Settings:
                     break
             if checkName is None:
                 raise invalid_command(commandStr)
+            commandName = re.sub("_", " ", checkName)
 
         def check(message):
-            return message.author.id == ctx.author.id and len(message.content.split()) == 1
+            return message.author.id == ctx.author.id and len(message.content.split()) == 1 and len(message.content.split()[0]) <= 25 and not re.search("[^a-zA-Z0-9]", message.content)
 
         extraStr = ""
         if checkName in setting.aliases:
@@ -192,7 +187,7 @@ class Settings:
             extraStr = extraStr + "```"
 
 
-        delete_later = await ctx.send("Reply with what you want your alias to be.\nDo not use any spaces or special characters."+extraStr)
+        delete_later = await ctx.send("Command found: "+commandName+". Reply with what you want your alias to be.\nDo not use any spaces or special characters.\nI will ignore you until you use the correct syntax.\nOtherwise, say `cancel` or wait 15 seconds to do nothing."+extraStr)
 
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=15)
@@ -205,9 +200,9 @@ class Settings:
         if self.bot.get_command(msgW):
             await msg.delete()
             return await ctx.send("That is already a hardcoded name or alias for another command ("+self.bot.get_command(msgW).name+").", delete_after=15)
-        if re.search("[^a-zA-Z0-9]", msgW):
+        if msgW == "cancel":
             await msg.delete()
-            return await ctx.send("You tried to use a special character. Start over.", delete_after=15)
+            return await ctx.send("Exited the alias editor.", delete_after=5)
 
         theBigList = set()
         for _, v in setting.aliases.items():
@@ -318,40 +313,40 @@ class Settings:
 
 
 
-    @commands.group(hidden=True, invoke_without_command=True)
+    @commands.group(invoke_without_command=True)
     @commands.check(Perms.is_guild_superadmin)
     async def settings(self, ctx):
         '''This is for setting some stuff by force if we need to'''
         raise unimplemented
 
-    @settings.command()
+    @settings.command(aliases=["check"])
     async def verify(self, ctx):
         '''Verify the server's settings against the example again'''
-        self.BarryBot.settings[ctx.guild.id].verify()
-        await ctx.send("I have made my best attempts to check for anything missing between the default config and this server's. Everything should be fixed.", delete_after=15)
-
-    @settings.command()
-    async def recopy(self, ctx):
-        '''Reset the entire server's settings using the example'''
         try:
-            defaults = configparser.ConfigParser(interpolation=None)
-            serversettings = self.BarryBot.guild_settings(ctx)
-            default_path = os.path.dirname(os.path.dirname(serversettings.config_filepath))+"/example_server.ini"
-
-            defaults.read(default_path, encoding='utf-8')
-
-            serversettings.features = defaults["Features"]
-            serversettings.moderation = defaults["Moderation"]
-            serversettings.commands = defaults["Commands"]
-            serversettings.aliases = defaults["Aliases"]
-            serversettings.roles = defaults["Role Levels"]
-
-            with open(serversettings.config_filepath, "w") as file:
-                serversettings.config.write(file)
-            self.BarryBot.settings[ctx.guild.id] = serversettings
-            await ctx.send("All server settings have been reset to default.", delete_after=15)
+            amount = self.BarryBot.settings[ctx.guild.id].verify()
+            await ctx.send("I have made my best attempts to check for anything missing between the default config and this server's. Total changes made: "+str(amount), delete_after=15)
         except:
             traceback.print_exc()
+
+    @settings.command(aliases=["reset"])
+    async def recopy(self, ctx):
+        '''Reset the entire server's settings using the example'''
+        defaults = configparser.ConfigParser(interpolation=None)
+        serversettings = self.BarryBot.guild_settings(ctx)
+        default_path = os.path.dirname(os.path.dirname(serversettings.config_filepath))+"/example_server.ini"
+
+        defaults.read(default_path, encoding='utf-8')
+
+        serversettings.features = defaults["Features"]
+        serversettings.moderation = defaults["Moderation"]
+        serversettings.commands = defaults["Commands"]
+        serversettings.aliases = defaults["Aliases"]
+        serversettings.roles = defaults["Role Levels"]
+
+        with open(serversettings.config_filepath, "w") as file:
+            serversettings.config.write(file)
+        self.BarryBot.settings[ctx.guild.id] = serversettings
+        await ctx.send("All server settings have been reset to default.", delete_after=15)
         
 class ServerSettings:
     # this is the object which describes each servers settings
@@ -397,20 +392,26 @@ class ServerSettings:
 
         configger.read(example_config_path, encoding='utf-8')
 
+        changes_made = 0
+
         try:
             for key, value in configger["Features"].items():
                 if key not in self.config["Features"]:
                     self.config["Features"][key] = value
+                    changes_made += 1
         except:
             self.config["Features"] = configger["Features"]
             print("Verify error: Missing feature could not be defaulted, all server features reset.")
+            changes_made += len(configger["Features"])
         try:
             for key, value in configger["Moderation"].items():
                 if key not in self.config["Moderation"]:
                     self.config["Moderation"][key] = value
+                    changes_made += 1
         except:
             self.config["Moderation"] = configger["Moderation"]
             print("Verify error: Missing moderation setting could not be defaulted, all server moderation settings reset.")
+            changes_made += len(configger["Moderation"])
 
         try:
             self.features
@@ -418,54 +419,63 @@ class ServerSettings:
             self.features = configger["Features"]
             self.config["Features"] = configger["Features"]
             print("Verify error: Features do not exist on this server. Reset to default.")
+            changes_made += len(self.features)
         try:
             self.moderation
         except:
             self.moderation = configger["Moderation"]
             self.config["Moderation"] = configger["Moderation"]
             print("Verify error: Moderation does not exist on this server. Reset to default.")
+            changes_made += len(self.moderation)
         try:
             self.commands
         except:
             self.commands = configger["Commands"]
             self.config["Commands"] = configger["Commands"]
             print("Verify error: Commands does not exist on this server. Reset to default.")
+            changes_made += len(self.commands)
         try:
             self.aliases
         except:
             self.aliases = configger["Aliases"]
             self.config["Aliases"] = configger["Aliases"]
             print("Verify error: Aliases do not exist on this server. Reset to default.")
+            changes_made += len(self.aliases)
         try:
             self.roles
         except:
             self.roles = configger["Role Levels"]
             self.config["Role Levels"] = configger["Role Levels"]
             print("Verify error: Roles do not exist on this server. Reset to default.")
+            changes_made += len(self.roles)
 
         if len(self.commands) != len(configger["Commands"]):
             for key in configger["Commands"]:
                 if key not in self.commands: #example command missing from final
                     self.commands[key] = configger["Commands"][key]
                     print("Set default command for missing: "+key)
+                    changes_made += 1
             for key in self.commands:
                 if key not in configger["Commands"]: #example command doesnt exist
                     del self.commands[key]
                     print("Deleted depreciated command: "+key)
+                    changes_made += 1
         if len(self.features) != len(configger["Features"]):
             for key in configger["Features"]:
                 if key not in self.features:
                     self.features[key] = configger["Features"][key]
                     print("Set default feature for missing: "+key)
+                    changes_made += 1
             for key in self.features:
                 if key not in configger["Features"]:
                     del self.features[key]
                     print("Deleted depreciated feature: "+key)
+                    changes_made += 1
 
 
         with open(self.config_filepath, "w") as file:
                 self.config.write(file)
-        print("Verify done.")
+        return changes_made
     def get_default(self, section, name):
         '''Find the default value for a setting'''
         configger = configparser.ConfigParser(interpolation=None)

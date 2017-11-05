@@ -63,7 +63,7 @@ class Uno:
         # if game.chan != ctx.guild.default_channel and gametype.lower() not in ["silent", "quiet", "unannounced"]:
         #     game.notifyMessage = await ctx.guild.default_channel.send("A game of "+game.gameType+" Uno is starting in "+game.chan.name+". Say '!uno join' in there to join the game.")
         #     #pass
-        # todo this is broken
+        # todo this is broken (the default channel thing)
 
 
     @uno.command(hidden=True)
@@ -103,6 +103,17 @@ class Uno:
             raise notInProgress
         game = self.BarryBot.UnoGames[ctx.channel.id]
         await game.chan.send("Debug info:\nServer: "+game.boundserver.name+"\nChan:"+game.chan.name+"\nAuthor:"+game.auth.name+"\nPlayersLength:"+str(len(game.players))+"\nCards:"+str(len(game.gameCards))+"\nType:"+game.gameType)
+    @uno.command(hidden=True)
+    @commands.check(Perms.is_guild_mod)
+    async def allcards(self, ctx):
+        '''- Show everyone's cards'''
+        await ctx.message.delete()
+        if ctx.channel.id not in self.BarryBot.UnoGames:
+            raise notInProgress
+        game = self.BarryBot.UnoGames[ctx.channel.id]
+        await game.chan.send("Everyone's cards:\n"+str(game.playerCards))
+
+
         
     @uno.command(aliases=["shuffle", "reorder"])
     async def shuffleplayers(self, ctx):

@@ -9,6 +9,7 @@ import datetime
 import traceback
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from shutil import rmtree
 from collections import deque
 from itertools import islice
 from BB.conf import Conf
@@ -50,7 +51,11 @@ class Player: #this represents commands and not an actual player/voicechan objec
         self.loop = loop 
         self.BarryBot = mainbot #contains the Downloader and mainly everything
         self.players = {} #format: self.players[serverID] = (channelplayer, playlist); playlist contains message/chan/vc/self etc
-        
+        try:
+            rmtree(config.download_path)
+        except:
+            pass
+
     @commands.command(aliases=["join", "come"])
     async def summon(self, ctx):
         '''Bring the bot into a voice channel
@@ -98,7 +103,10 @@ class Player: #this represents commands and not an actual player/voicechan objec
     async def play(self, ctx, *, url : str):
         '''Queue an item on the music player
         If I am not in a channel, I will join yours.
-        If I am not in your voice channel, I will move if I'm not playing music.'''
+        If I am not in your voice channel, I will move if I'm not playing music.
+
+        Bonus: Adding the -b flag just after the command and before the search terms or link will give an obnoxious bass boost to the song.
+        Example: !play -b poop'''
         try:
             is_mod = Perms.is_guild_mod(ctx)
         except:
@@ -137,7 +145,12 @@ class Player: #this represents commands and not an actual player/voicechan objec
         if not info:
             await change_later.delete()
             raise entryFailure
-        
+        bassboost = False
+        if url.split()[0].lower() == "-b":
+            if len(url.split()) == 1:
+                raise specific_error("You did not specify a search term or link to use after the Bass Boost flag.")
+            bassboost = True
+            url = " ".join(url.split()[1:])
         if info.get('url', '').startswith('ytsearch'):
             info = await self.BarryBot.downloader.get_the_stuff(
                 self.players[ctx.guild.id][1].loop,
@@ -162,11 +175,11 @@ class Player: #this represents commands and not an actual player/voicechan objec
                 raise songTooLong
             
             try:
-                entry, position = await self.players[ctx.guild.id][1].add_entry(url, queuer=ctx.author)
+                entry, position = await self.players[ctx.guild.id][1].add_entry(url, queuer=ctx.author, bass=bassboost)
             except:
                 await change_later.delete()
                 raise entryFailure
-            sendMessage = "Found and queued **%s** at position %s in the queue."
+            sendMessage = "Found and queued **%s** at position %s in the queue"
             title = entry.name
         self.players[ctx.guild.id][1].chan = ctx.channel
         if position == 1 and not self.players[ctx.guild.id][0].is_playing():
@@ -186,7 +199,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
             #just add the queue and download it but dont do anything else
             try:
                 time_to = await self.players[ctx.guild.id][1].time_to(position)
-                sendMessage += " - Max time until it plays: %s"
+                sendMessage += " - Rough estimation for when it will play: %s"
             except:
                 time_to = "Error"
             try:
@@ -347,44 +360,97 @@ class Player: #this represents commands and not an actual player/voicechan objec
         
         
     @commands.command(hidden=True)
+    @commands.check(Perms.is_owner)
     async def download(self, ctx):
-        ''' download the first entry'''
+        ''' download the first entry
+        Testing only'''
         
         await self.players[ctx.guild.id][1].entries[0].download()
         
     @commands.command(hidden=True)
+    @commands.check(Perms.is_owner)
     async def forceplay(self, ctx):
-        ''' force the first entry to play'''
+        ''' force the first entry to play
+        Testing only'''
         try:
             await self.players[ctx.guild.id][1].entries[0].play(self.players[ctx.guild.id][0])
         except:
             traceback.print_exc()
             
     @commands.command(hidden=True)
+    @commands.check(Perms.is_owner)
     async def dirplay(self, ctx, *, song:str):
-        ''' force the bot to play a file'''
+        ''' force the bot to play a file
+        Testing only'''
         self.players[ctx.guild.id][0].play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song), volume=0.5), after=lambda e: print("done", e))
-            
+
     @commands.command(hidden=True)
+    @commands.check(Perms.is_owner)
+    async def directoryplay(self, ctx, *, song:str):
+        ''' play something straight from a filepath
+        Testing only (functional)'''
+
+        # dont need to check for vc unless the command is open to all
+        if ctx.guild.id not in self.players and ctx.author.voice:
+            await self.summon.invoke(ctx)
+        else:
+            if ctx.author.voice:
+                if ctx.author.voice.channel.id != self.players[ctx.guild.id][1].voice_channel.id and ctx.author.voice.channel.id != players[ctx.guild.id][0].channel.id:
+                    if not(self.players[ctx.guild.id][0].is_playing()):
+                        await self.summon.invoke(ctx)
+        change_later = await ctx.send("Adding manual link...")
+        if not os.path.isfile(song):
+            await change_later.delete()
+            raise specific_error("That file does not exist.")
+        bassboost = False
+        if song.split()[0].lower() == "-b":
+            if len(song.split()) == 1:
+                await change_later.delete()
+                raise specific_error("You can't bass boost nothing.")
+            bassboost = True
+            song = " ".join(song.split()[1:])
+        try:
+            title = re.search(r"([^\\/]*$)", song).group(0)
+            entry, position = await self.players[ctx.guild.id][1].add_entry(queuer=ctx.author, bass=bassboost, forced_info={"title":title, "filepath":song})
+        except:
+            traceback.print_exc()
+            await change_later.delete()
+            raise entryFailure
+        sendMessage = "Found and queued **%s** at position %s in the queue"
+
+        self.players[ctx.guild.id][1].chan = ctx.channel
+        if position == 1 and not self.players[ctx.guild.id][0].is_playing():
+            sendMessage = "Found and queued **%s** to play as soon as possible!"
+            sendMessage %= title
+            await change_later.edit(content=sendMessage)
+            await self.BarryBot.delete_later(change_later, 30)
+            self.players[ctx.guild.id][1].temp_message = change_later
+            cur_entr = self.players[ctx.guild.id][1].current_entry()
+            await self.players[ctx.guild.id][1].entries[0].download()
+            if cur_entr.skipped:
+                return
+            self.players[ctx.guild.id][1].message = await self.players[ctx.guild.id][1].chan.send("Now playing in "+self.players[ctx.guild.id][0].channel.name+": "+str(self.players[ctx.guild.id][1].entries[0]))
+            await self.players[ctx.guild.id][1].entries[0].play(self.players[ctx.guild.id][0])
+        else:
+            try:
+                time_to = await self.players[ctx.guild.id][1].time_to(position)
+                sendMessage += " - Rough estimation for when it will play: %s"
+            except:
+                time_to = "Error"
+            try:
+                sendMessage %= (title, position, time_to)
+            except:
+                sendMessage = "There was an error creating the final string, but "+title+" should have been queued anyways."
+            await change_later.edit(content=sendMessage)
+            await self.BarryBot.delete_later(change_later, 30)
+
+
+    @commands.command(hidden=True)
+    @commands.check(Perms.is_owner)
     async def downplay(self, ctx):
         ''' download and play first entry'''
         await self.players[ctx.guild.id][1].entries[0].download()
         await self.players[ctx.guild.id][1].entries[0].play(self.players[ctx.guild.id][0])
-    
-    @commands.command(hidden=True)
-    async def popleft(self, ctx):
-        ''' g'''
-        self.players[ctx.guild.id][1].entries.popleft()
-        await self.players[ctx.guild.id][1].message.delete()
-        
-    @commands.command(hidden=True)
-    async def testcopy(self, ctx):
-        ''' g'''
-        for entry in self.players[ctx.guild.id][1].entries:
-            print(entry)
-        coppy = [entry for entry in self.players[ctx.guild.id][1].entries]
-        print(coppy)
-        print(self.players[ctx.guild.id][1].entries)
 
     @commands.command(hidden=True)
     async def bboost(self, ctx, *, song:str):
@@ -397,7 +463,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
             traceback.print_exc()
     
 class Entry:
-    def __init__(self, playlist, queuer, name, duration=0, filename=None, url=None, Filepath=None):
+    def __init__(self, playlist, queuer, name, duration=0, filename=None, url=None, bass=False, Filepath=None):
         self.downloading = False
         self.is_downloaded = False if not Filepath else True
         self.playlist = playlist
@@ -410,6 +476,8 @@ class Entry:
         self.skipvotes = set()
         self.skipped = False
         self.url = url
+        self.bassy = bass
+        self.boosted = False
         
     def __str__(self):
         return "**"+self.name+"** queued by "+self.author+". **Duration**: "+str(datetime.timedelta(seconds=self.duration))
@@ -417,6 +485,10 @@ class Entry:
         
         
     async def download(self):
+        if self.filepath:
+            self.downloading = False
+            self.is_downloaded = True
+            return
         if self.downloading or self.is_downloaded:
             return
         self.downloading = True
@@ -435,7 +507,19 @@ class Entry:
         self.downloading = False
         self.is_downloaded = True
         if self.skipped:
-            await self.playlist.prune_song(self)
+            return await self.playlist.prune_song(self)
+        if self.bassy:
+            if not self.boosted:
+                try:
+                    proc = await asyncio.create_subprocess_exec("ffmpeg", "-loglevel", "quiet", "-y", "-i", self.filename, "-af",
+                                                                "bass=g=15", self.filename+"_bass_"+self.filename[-5:])
+                    await proc.wait()
+                    await self.playlist.prune_song(self)
+                    self.filename = self.filename+"_bass_"+self.filename[-5:]
+                except:
+                    traceback.print_exc()
+                self.boosted = True
+
     async def download_play(self, player):
         ''' this downloads and plays a song. this is a fallback for if somehow, a song gets deleted or is never downloaded'''
         if self.playlist.voice_channel.id != player.channel.id:
@@ -502,7 +586,20 @@ class Playlist:
         else:
             self.entries.clear()
         
-    async def add_entry(self, url=None, queuer=None, **meta):
+    async def add_entry(self, url=None, queuer=None, bass=False, forced_info=None, **meta):
+        if forced_info:
+            entry = Entry(
+                self,
+                queuer,
+                forced_info.get('title', "Untitled"),
+                0,
+                forced_info.get("filepath", "Error"),
+                url,
+                bass,
+                forced_info.get("filepath", "Error"),
+            )
+            self.entries.append(entry)
+            return entry, len(self.entries)
         try:
             self.downloader.ytdl.params['outtmpl'] = os.path.join(self.downloader.path+"/"+str(self.chan.guild.id), self.downloader.tPN)
             info = await self.downloader.get_the_stuff(self.loop, url, download=False)
@@ -515,6 +612,7 @@ class Playlist:
             info.get('duration', 0) or 0,
             self.downloader.ytdl.prepare_filename(info),
             url,
+            bass,
             **meta
         )
         
@@ -590,6 +688,8 @@ class Playlist:
                     await self.entries[1].download()
             else:
                 await self.chan.send("The playlist is empty. The music has ended.", delete_after=15)
+                await self.player.players[self.chan.guild.id][0].disconnect()
+                del self.player.players[self.chan.guild.id]
         except:
             traceback.print_exc()
             

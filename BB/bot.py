@@ -92,13 +92,15 @@ class Barry(discord.Client):
         await ctx.send("Shutting down. I will not restart until manually run again.")
         await self.logout()
         await self.bot.logout()
+
+
     
     async def delete_later(self, message, time=15): #self.loop.create_task(self._actually_delete_later(message, time))
         self.loop.create_task(self._actually_delete_later(message, time))
     async def _actually_delete_later(self, message, time=15):
         await asyncio.sleep(time)
         try:
-            await message.delete(reason="Automatic deletion by Bot.")
+            await message.delete()
         except:
             pass
 
