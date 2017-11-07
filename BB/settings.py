@@ -143,7 +143,7 @@ class Settings:
         '''- Allows creating or deleting an alias for a command
         Using this command with no argument will provide a list of aliases.
         If the alias already exists and is NOT hardcoded, then the alias is removed.
-        The alias must contain no spaces.
+        The alias must contain no spaces and must be less than 25 characters.
         Note: These aliases work 'globally' in a way, meaning that an alias set for a subcommand, such as 'poop' for !uno play, would work as !poop
         Any capitalization in the alias will be removed.
         Quirk Note: It is possible to have an alias match a hardcoded alias for a subcommand (like !play doing something different than !uno play)
@@ -258,7 +258,7 @@ class Settings:
         '''The main command for managing the server roles
         This is useful for creating and deleting roles.
         This is useful for granting and taking roles lazily.
-        This is the way to assign roles to mod levels (1 - 4)
+        This is the way to assign roles to mod levels (0 - 3)
 
         Use '!role make Role' to create an empty role at the bottom of the hierarchy.
         Use '!role make Role 1' to create a role with typical Server Mod permissions - at the bottom of the hierarchy.
@@ -272,42 +272,235 @@ class Settings:
             Normally, level 1 would require granting a user the ability to delete messages. This is the way around it.
         Permission errors:
             You can't do any operations involving roles which are at or above your level of permissions or higher than your highest role in the hierarchy.'''
-        raise unimplemented
+        raise specific_error("You need to specify a subcommand to get anywhere with this command.\nUse !help role")
 
-    @role_.command(usage="[Role Name] [Permission Level]")
+    @role_.command(aliases=["create"], usage="[Role Name] [Permission Level]")
     async def make(self, ctx, *args):
         '''- Create a Role
         Simply using this command and not providing any permission level at the end will make an empty role at the bottom of the hierarchy.
         To create a role with more than one word in the name, use quotes.
         Providing a permission level after the role name does not put the role in the group, but does give them typical permissions of that caliber.
-            As a result of having those permissions, however, the role will still be in the given permission level.'''
-        raise unimplemented
+            As a result of having those permissions, however, the role will still be in the given permission level.
+        Note: Colors and Hoist (appearing separate from the others) must be done manually.'''
+        if len(args) == 0:
+            raise specific_error("Usage: !role make [Role Name] [Permission Level]")
+        if len(args) == 1:
+            permission_level = -1
+        else:
+            try:
+                permission_level = int(args[1])
+                if permission_level < 0 or permission_level > 3:
+                    raise specific_error("You must specify an integer from 0-3 to set pre-determined premissions on a new role.")
+            except:
+                raise specific_error("You must specify an integer from 0-3 to set pre-determined permissions on a new role.")
+        role_name = args[0]
+        if len(role_name) > 90:
+            raise specific_error("The name of your role can't be so long. (about 90-100 characters)")
+        setting = self.BarryBot.settings[ctx.guild.id]
+        executor_perms = Perms.get_custom_perms(ctx, setting)
+        if executor_perms <= permission_level:
+            raise specific_error("You can't create a role with pre-determined permissions at or above your permission level.")
+
+        if role_name in [role.name for role in ctx.guild.role_hierarchy]:
+            raise specific_error("You can't create a role which already exists. Modify it yourself instead.")
+
+        role_perms = discord.Permissions(permissions=0)
+        endStr = "Empty"
+        role_perms_specific = {}
+        if permission_level == 0:
+            endStr = "Default"
+            role_perms_specific = {
+                "add_reactions":True,
+                "read_messages":True,
+                "send_messages":True,
+                "embed_links":True,
+                "attach_files":True,
+                "read_message_history":True,
+                "external_emojis":True,
+                "connect":True,
+                "speak":True,
+                "use_voice_activation":True,
+                "change_nickname":True
+            }
+        elif permission_level == 1:
+            endStr = "Server Moderator"
+            role_perms_specific = {
+                "create_instant_invite":True,
+                "kick_members":True,
+                "add_reactions":True,
+                "read_messages":True,
+                "send_messages":True,
+                "manage_messages":True,
+                "embed_links":True,
+                "attach_files":True,
+                "read_message_history":True,
+                "external_emojis":True,
+                "connect":True,
+                "speak":True,
+                "mute_members":True,
+                "deafen_members":True,
+                "move_members":True,
+                "use_voice_activation":True,
+                "change_nickname":True,
+                "manage_nicknames":True,
+                "manage_emojis":True
+            }
+        elif permission_level == 2:
+            endStr = "Server Admin"
+            role_perms_specific = {
+                "create_instant_invite":True,
+                "kick_members":True,
+                "ban_members":True,
+                "manage_guild":True,
+                "manage_channels":True,
+                "view_audit_log":True,
+                "mention_everyone":True,
+                "manage_roles":True,
+                "add_reactions":True,
+                "read_messages":True,
+                "send_messages":True,
+                "manage_messages":True,
+                "embed_links":True,
+                "attach_files":True,
+                "read_message_history":True,
+                "external_emojis":True,
+                "connect":True,
+                "speak":True,
+                "mute_members":True,
+                "deafen_members":True,
+                "move_members":True,
+                "use_voice_activation":True,
+                "change_nickname":True,
+                "manage_nicknames":True,
+                "manage_emojis":True
+            }
+        elif permission_level == 3:
+            endStr = "Server Superadmin"
+            role_perms_specific = {
+                "create_instant_invite":True,
+                "kick_members":True,
+                "ban_members":True,
+                "manage_guild":True,
+                "manage_channels":True,
+                "view_audit_log":True,
+                "mention_everyone":True,
+                "manage_roles":True,
+                "add_reactions":True,
+                "read_messages":True,
+                "send_messages":True,
+                "manage_messages":True,
+                "embed_links":True,
+                "attach_files":True,
+                "read_message_history":True,
+                "external_emojis":True,
+                "connect":True,
+                "speak":True,
+                "mute_members":True,
+                "deafen_members":True,
+                "move_members":True,
+                "use_voice_activation":True,
+                "change_nickname":True,
+                "manage_nicknames":True,
+                "manage_emojis":True,
+                "administrator":True
+            }
+        try:
+            role_perms.update(**role_perms_specific)
+            await ctx.guild.create_role(name=role_name, permissions=role_perms)
+        except:
+            raise specific_error("Something went wrong trying to modify the permission object or create the role. The most likely reason is that I don't have permissions...")
+        await ctx.send("I have created the requested "+endStr+" role named "+role_name+". It is at the bottom of the hierarchy.")
+
+
 
     @role_.command(usage="[Role Name]")
-    async def delete(self, ctx, *, Role : str):
+    async def delete(self, ctx, *, Role : discord.Role):
         '''- Delete a Role
         Exactly what it says it does.
-        Deleting a role with more than one word in the name does NOT require surrounding the name with quotes.'''
-        raise unimplemented
+        Deleting a role with more than one word in the name does NOT require surrounding the name with quotes.
+        Capitalization DOES matter.'''
+        setting = self.BarryBot.settings[ctx.guild.id]
+        executor_lvl = Perms.get_custom_perms(ctx, setting)
+        role_lvl = Perms.get_perm_level_for_role(Role, setting)
+        if executor_lvl <= role_lvl:
+            raise specific_error("You can't delete a role worth an equal or greater power than your most powerful role.\n("+str(executor_lvl)+" <= "+str(role_lvl)+")")
+        try:
+            await Role.delete()
+        except:
+            raise specific_error("Something went wrong with deleting the role. Maybe I don't have permission to do that.")
+        await ctx.send("I have deleted the role "+Role.name+".")
 
     @role_.command(name="perm", usage="[Role Name] [Permission Level]")
-    async def perm__(self, ctx, Role : str, permlevel : int = -2):
+    async def perm__(self, ctx, Role : discord.Role, permlevel : int = -2):
         '''- Set the permission level for a Role
-        If the name of the role is more than one word, surround the name in quotes.'''
+        If the name of the role is more than one word, surround the name in quotes.
+        To negate any changes to a role and return settings back to default, input -1 as the second parameter.
+        This does NOT modify the role. This only internally sets its permissions level, allowing multilayered command permissions.
+        Capitalization DOES matter.'''
         # if no permlevel is provided: return the current level
-        raise unimplemented
+        setting = self.BarryBot.settings[ctx.guild.id]
+        if permlevel == -2:
+            permlevel = Perms.get_perm_level_for_role(Role, setting)
+            return ctx.send("The pre-determined or manually set permission level for the role '"+Role.name+"' is "+str(permlevel)+".")
+        if permlevel == -1:
+            setting.remove("Role Levels", Role.name)
+            return ctx.send("The role '"+Role.name+"' has been set back to a default level of "+str(Perms.get_perm_level_for_role(Role, setting))+".")
+
+        if setting.modify("Role Levels", Role.name, str(permlevel)):
+            return ctx.send("The role '"+Role.name+"' has been manually set to level "+str(permlevel)+".")
+        else:
+            setting.add("Role Levels", Role.name, str(permlevel))
+            return ctx.send("The role '"+Role.name+"' has been manually set to level "+str(permlevel)+".")
+
 
     @role_.command(usage="[Role Name] [@user]")
-    async def give(self, ctx, Role : str, user : discord.Member):
+    async def give(self, ctx, Role : discord.Role, user : discord.Member):
         '''- Give a user a Role
-        If the name of the role is more than one word, surround the name in quotes.'''
-        raise unimplemented
+        If the name of the role is more than one word, surround the name in quotes.
+        Capitalization DOES matter.'''
+        setting = self.BarryBot.settings[ctx.guild.id]
+        executor_lvl = Perms.get_custom_perms(ctx, setting)
+        role_lvl = Perms.get_perm_level_for_role(Role, setting)
+        if executor_lvl <= role_lvl:
+            raise specific_error("You can't assign a role worth an equal or greater power than your most powerful role,\n("+str(executor_lvl)+" <= "+str(role_lvl)+")")
+        if Role in user.roles:
+            raise specific_error("They already have that role.")
+        try:
+            await user.add_roles(Role)
+        except:
+            raise specific_error("Something went wrong with assigning the role. Maybe I don't have permission to do that.")
 
     @role_.command(usage="[Role Name] [@user]")
-    async def take(self, ctx, Role : str, user : discord.Member):
+    async def take(self, ctx, Role : discord.Role, user : discord.Member):
         '''- Take a Role from a user
-        If the name of the role is more than one word, surround the name in quotes.'''
-        raise unimplemented
+        If the name of the role is more than one word, surround the name in quotes.
+        Capitalization DOES matter.'''
+        setting = self.BarryBot.settings[ctx.guild.id]
+        executor_lvl = Perms.get_custom_perms(ctx, setting)
+        role_lvl = Perms.get_perm_level_for_role(Role, setting)
+        if executor_lvl <= role_lvl:
+            raise specific_error("You can't remove a role worth an equal or greater power than your most powerful role,\n("+str(executor_lvl)+" <= "+str(role_lvl)+")")
+        if Role not in user.roles:
+            raise specific_error("They don't have that role.")
+        try:
+            await user.remove_roles(Role)
+        except:
+            raise specific_error("Something went wrong with removing the role. Maybe I don't have permission to do that.")
+
+    @role_.command(usage="[Role Name]")
+    async def purge(self, ctx, Role : discord.Role):
+        '''- Delete every Role under the indicated Role
+        This cannot be undone. Use this wisely.
+        Normally, only server owners can do this.'''
+        the_flag = False
+        deleted = []
+        for role_pos in ctx.guild.role_hierarchy:
+            if role_pos == Role:
+                the_flag = True
+            if the_flag:
+                await role_pos.delete()
+                deleted.append(role_pos.name)
+        await ctx.send("I have deleted "+str(len(deleted))+" roles...\n```Here is a list:\n"+"\n".join(deleted))
 
 
 

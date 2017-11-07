@@ -212,6 +212,18 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         except: permFound = 0
         return max(permFound, roleCheck)
 
+    def get_perm_level_for_role(role, settings):
+        ''' Figure out what level of permissions the role itself has.'''
+        if str(role.id) in settings.roles:
+            return int(settings.roles[str(role.id)])
+        role_perms = role.permissions
+        if role_perms.administrator:
+            return 3
+        if role_perms.manage_guild:
+            return 2
+        if role_perms.manage_messages:
+            return 1
+        return 0
 
 class not_owner(commands.CommandError):
     pass
