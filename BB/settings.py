@@ -238,20 +238,93 @@ class Settings:
     @commands.command(aliases=["feature", "feat"], usage="[feature name]")
     async def features(self, ctx, *, featureStr : str = "Show Features"):
         '''The main command for managing the server features (or list them)
+        To show a list of features and their values, use this command with no parameters.
         To access settings for a specific feature, use this command again, also supplying the feature name.
 
         If there are no extra settings for a feature, it will be toggled on or off instead of displaying options.
         If there are extra settings for a feature, I will indicate that you need to reply with certain information.
 
-        For example: >!feature autoclear
-                     >add 231537900699910145
-                     >!feature autoclear
-                     >freq 231537900699910145 43200
-        What that does: adds a channel by ID to the auto-clear list. Sets how often I will clear the channel.'''
+        For example: >!feature playerleave
+                     >30
+        What that does: Sets the amount of time in seconds the bot will wait in the voice channel after the playlist is empty, in case someone tries to queue something else.'''
         # this will get quite complicated.
         # many wait_fors and many checks
         # ifs to check what the reply was, what to do... etc
-        raise unimplemented
+        setting = self.BarryBot.settings[ctx.guild.id]
+        list_of_feature_names = {"playerleave"}
+
+        # unfortunately we are also about to do something you never want to see ever
+        # there isn't much of a better way to do it that i can tell without making every single feature an object
+        # if i were to do that i would be wasting so much time
+        # ... now that i think about it making features objects would be neat but then again somewhere along the line i feel like im going to have to do something super explicit anyways so why not do it here instead
+        if featureStr == "Show Features":
+            p = GenericPaginator(self.BarryBot, ctx, page_header = "Feature     | Details", markdown="css")
+            #p.add_line(line="autoclear   - Set a list of channels to be emptied every certain number of minutes (")
+            #p.add_line(line=" IDs: "+", ".join(setting.features["clr_channel_ids"].split()))
+            #p.add_line(line=" Time: "+", ".join([setting.features["clr_channel_freq"].split()[i*2] + ": " + setting.features["clr_channel_freq"].split()[i*2+1] for i in range(len(setting.features["clr_channel_freq"].split()))]))
+            p.add_line(line="playerleave - How many seconds the player waits after the playlist is empty before leaving the channel")
+            p.add_line(line=" Time: "+setting.features["playerleave"])
+
+            if p.lines_on_a_page == 0 and p.pagenum == 0:
+                p.add_line(line="Something is terribly wrong here...........")
+            msg = await ctx.send("Here is a list of all the features available to your server. Modify them using !feat [featurename]. Do not specify things like 'IDs' or 'Time.'\n"+str(p))
+            p.msg = msg
+            await p.add_reactions()
+            await p.start_waiting()
+            return
+        if featureStr.split()[0].lower() in list_of_feature_names:
+            the_feature = featureStr.split()[0].lower()
+        else:
+            raise specific_error("That feature does not exist. Specify an exact name from the given list seen in !features")
+
+        ###
+        #
+        #feature trigger block
+        #
+        ###
+        if the_feature == "playerleave":
+            delete_later = await ctx.send("Feature found: Player Leave Time. Reply with a number of seconds you would like the bot to wait in the voice channel before leaving, after the playlist is empty.\nI will ignore you until you use the correct syntax.\nSay `cancel` or wait 30 seconds to do nothing.\nDefault: 10\nCurrent: "+setting.features["playerleave"])
+            def check(message):
+                if message.author.id == ctx.author.id and message.content.lower() == "cancel":
+                    return True
+                try:
+                    int(message.content)
+                except:
+                    return False
+                return message.author.id == ctx.author.id and int(message.content) <= 60
+            success_str = "I have set the Player Leave Time to %s"
+        if the_feature == "other stuff":
+            pass
+
+        try:
+            msg = await self.bot.wait_for("message", check=check, timeout=30)
+        except:
+            return await delete_later.delete()
+
+        await delete_later.delete()
+        if msg.content.lower() == "cancel":
+            await msg.delete()
+            return await ctx.send("Exited the feature editor without changing anything.", delete_after=5)
+        ###
+        #
+        #the feature change block (only ever reached upon successful entry)
+        #
+        ###
+        try:
+            if the_feature == "playerleave":
+                setting.modify("Features", "playerleave", msg.content)
+                return await ctx.send("I have changed the music player leave time to "+msg.content+" seconds.", delete_after=15)
+
+
+
+        except:
+            traceback.print_exc()
+
+
+
+
+
+
 
     @commands.group(name="roles", aliases=["perm", "role"], invoke_without_command=True)
     async def role_(self, ctx):
@@ -430,6 +503,27 @@ class Settings:
             raise specific_error("Something went wrong with deleting the role. Maybe I don't have permission to do that.")
         await ctx.send("I have deleted the role "+Role.name+".")
 
+    @role_.command(usage="[Role Name]")
+    async def empty(self, ctx, *, Role : discord.Role):
+        '''- Empty a Role
+        Unassigns the role from every user on the server.
+        Capitalization DOES matter.'''
+        setting = self.BarryBot.settings[ctx.guild.id]
+        executor_lvl = Perms.get_custom_perms(ctx, setting)
+        role_lvl = Perms.get_perm_level_for_role(Role, setting)
+        if executor_lvl <= role_lvl:
+            raise specific_error("You can't unassign a role worth an equal or greater power than your most powerful role.\n("+str(executor_lvl)+" <= "+str(role_lvl)+")")
+        try:
+            member_list = Role.members
+            count = 0
+            for person in member_list:
+                await person.remove_roles(Role)
+                count += 1
+            await ctx.send("I have removed the role from "+str(count)+" members.")
+        except:
+            raise specific_error("Something went wrong with unassigning the role. Maybe I don't have permission to do that.")
+
+
     @role_.command(name="perm", usage="[Role Name] [Permission Level]")
     async def perm__(self, ctx, Role : discord.Role, permlevel : int = -2):
         '''- Set the permission level for a Role
@@ -467,6 +561,7 @@ class Settings:
             raise specific_error("They already have that role.")
         try:
             await user.add_roles(Role)
+            await ctx.send("I have assigned the role "+Role.name+" to "+user.name+".")
         except:
             raise specific_error("Something went wrong with assigning the role. Maybe I don't have permission to do that.")
 
@@ -484,6 +579,7 @@ class Settings:
             raise specific_error("They don't have that role.")
         try:
             await user.remove_roles(Role)
+            await ctx.send("I have unassigned the role "+Role.name+" from "+user.name+".")
         except:
             raise specific_error("Something went wrong with removing the role. Maybe I don't have permission to do that.")
 
@@ -492,15 +588,18 @@ class Settings:
         '''- Delete every Role under the indicated Role
         This cannot be undone. Use this wisely.
         Normally, only server owners can do this.'''
-        the_flag = False
-        deleted = []
-        for role_pos in ctx.guild.role_hierarchy:
-            if role_pos == Role:
-                the_flag = True
-            if the_flag:
-                await role_pos.delete()
-                deleted.append(role_pos.name)
-        await ctx.send("I have deleted "+str(len(deleted))+" roles...\n```Here is a list:\n"+"\n".join(deleted))
+        try:
+            the_flag = False
+            deleted = []
+            for role_pos in ctx.guild.role_hierarchy:
+                if role_pos == Role:
+                    the_flag = True
+                if the_flag:
+                    await role_pos.delete()
+                    deleted.append(role_pos.name)
+            await ctx.send("I have deleted "+str(len(deleted))+" roles...\n```Here is a list:\n"+"\n".join(deleted))
+        except:
+            await ctx.send("I could not purge the roles... Is it a permission issue?")
 
 
 
@@ -509,12 +608,14 @@ class Settings:
     @commands.group(invoke_without_command=True)
     @commands.check(Perms.is_guild_superadmin)
     async def settings(self, ctx):
-        '''This is for setting some stuff by force if we need to'''
-        raise unimplemented
+        '''The main command for managing the server settings (rare usage)
+        This is useful for resetting all the settings or verifying to make sure nothing is broken.
+        This should only be used if something is probably broken.'''
+        raise specific_error("Specify a subcommand.")
 
     @settings.command(aliases=["check"])
     async def verify(self, ctx):
-        '''Verify the server's settings against the example again'''
+        '''- Verify the server's settings against the example again'''
         try:
             amount = self.BarryBot.settings[ctx.guild.id].verify()
             await ctx.send("I have made my best attempts to check for anything missing between the default config and this server's. Total changes made: "+str(amount), delete_after=15)
@@ -523,7 +624,7 @@ class Settings:
 
     @settings.command(aliases=["reset"])
     async def recopy(self, ctx):
-        '''Reset the entire server's settings using the example'''
+        '''- Reset the entire server's settings using the example'''
         defaults = configparser.ConfigParser(interpolation=None)
         serversettings = self.BarryBot.guild_settings(ctx)
         default_path = os.path.dirname(os.path.dirname(serversettings.config_filepath))+"/example_server.ini"
@@ -558,8 +659,8 @@ class ServerSettings:
     
         self.config.read(self.config_filepath, encoding='utf-8')
         
-        self.clearChannel_list = self.config.get("Features", "clr_channel_ids", fallback=SettingDefaults.clearChannel_list).split()  #a list of ids (updated when the channels are cleared
-        self.clearChannel_frequency = self.config.get("Features", "clr_channel_freq", fallback=SettingDefaults.clearChannel_frequency)#an int of seconds at least 12 hours long
+        #self.clearChannel_list = self.config.get("Features", "clr_channel_ids", fallback=SettingDefaults.clearChannel_list).split()  #a list of ids (updated when the channels are cleared
+        #self.clearChannel_frequency = self.config.get("Features", "clr_channel_freq", fallback=SettingDefaults.clearChannel_frequency)#an int of seconds at least 12 hours long
         #... more to come
 
         try:

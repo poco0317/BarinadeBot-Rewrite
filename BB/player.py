@@ -182,6 +182,10 @@ class Player: #this represents commands and not an actual player/voicechan objec
             sendMessage = "Found and queued **%s** at position %s in the queue"
             title = entry.name
         self.players[ctx.guild.id][1].chan = ctx.channel
+        try:
+            self.players[ctx.guild.id][1].waitingTask.cancel()
+        except:
+            pass
         if position == 1 and not self.players[ctx.guild.id][0].is_playing():
             #make the player play the song and pretty much dont even need to queue it
             sendMessage = "Found and queued **%s** to play as soon as possible!"
@@ -260,7 +264,19 @@ class Player: #this represents commands and not an actual player/voicechan objec
         if overLimit:
             finalStr = finalStr + "\n\n" + "**...Plus "+str(overLimit)+" more...**"
         await ctx.send(finalStr, delete_after=60)
-        
+
+    @commands.command(aliases=["np", "playing"])
+    async def nowplaying(self, ctx):
+        '''Show the current playing song'''
+        if ctx.guild.id not in self.players:
+            raise alreadyLeft
+        if len(self.players[ctx.guild.id][1].entries) == 0:
+            return await ctx.send("There is nothing playing because there are no entries in the playlist!", delete_after=15)
+        if not self.players[ctx.guild.id][0].is_playing():
+            return await ctx.send("The music is paused on: "+str(self.players[ctx.guild.id][1].entries[0]))
+        await ctx.send("Currently Playing: "+str(self.players[ctx.guild.id][1].entries[0]))
+
+
     @commands.command(aliases=["reorder", "randomize"])
     async def shuffle(self, ctx):
         '''Randomize the order of the playlist'''
@@ -357,7 +373,29 @@ class Player: #this represents commands and not an actual player/voicechan objec
             else:
                 # notify how many skips there are out of 5
                 await ctx.send("Vote confirmed. The song (**"+playlist.entries[pos].name+"**) in position "+str(pos+1)+" needs "+str(5-len(playlist.entries[pos].skipvotes))+" more skip votes to be skipped.", delete_after=15)
-        
+
+    @commands.command(aliases=["unpause", "resume"])
+    async def pause(self, ctx):
+        '''Pause or unpause the music'''
+        if ctx.guild.id not in self.players:
+            raise alreadyLeft
+        playa = self.players[ctx.guild.id][0]
+        playalist = self.players[ctx.guild.id][1]
+        if playa.is_playing():
+            playa.pause()
+            return await ctx.send(ctx.author.name +" paused the music.")
+        if len(playalist.entries) > 0 and playa.is_paused():
+            playa.resume()
+            return await ctx.send(ctx.author.name +" resumed the music.")
+        if len(playalist.entries) == 0:
+            await ctx.send("I cannot unpause because the playlist is empty.")
+            try:
+                playa.resume()
+            except:
+                pass
+
+
+
         
     @commands.command(hidden=True)
     @commands.check(Perms.is_owner)
@@ -444,24 +482,39 @@ class Player: #this represents commands and not an actual player/voicechan objec
             await change_later.edit(content=sendMessage)
             await self.BarryBot.delete_later(change_later, 30)
 
+    @commands.command()
+    async def seek(self, ctx, position:str):
+        ''' Seek in the current audio to a position
+        The given position should be in an easy to interpret format.
+        The most complicated format is: HH:MM:SS.msms
+        If simply an integer or decimal is given, it uses that many seconds to seek to.
+        All seek times are from the beginning of the file.
+        If the seek time is not within the bounds of the file, the audio ends and the playlist continues.
+        If there is an error in your formatting, the audio ends and the playlist continues.'''
+        if ctx.guild.id not in self.players:
+            raise alreadyLeft
+        real_playa = self.players[ctx.guild.id][0]
+        if not real_playa.is_playing():
+            raise specific_error("The music is paused or nothing is queued.")
 
-    @commands.command(hidden=True)
-    @commands.check(Perms.is_owner)
-    async def downplay(self, ctx):
-        ''' download and play first entry'''
-        await self.players[ctx.guild.id][1].entries[0].download()
-        await self.players[ctx.guild.id][1].entries[0].play(self.players[ctx.guild.id][0])
-
-    @commands.command(hidden=True)
-    async def bboost(self, ctx, *, song:str):
-        ''' force the bot to play a file after first bass boosting it'''
+        entry = self.players[ctx.guild.id][1].entries[0]
+        playa = self.players[ctx.guild.id][1]
         try:
-            proc = await asyncio.create_subprocess_exec("ffmpeg", "-loglevel", "quiet", "-y", "-i", song, "-af", "bass=g=15", "output"+song[-4:])
-            await proc.wait()
-            self.players[ctx.guild.id][0].play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio("output"+song[-4:]), volume=0.3), after=lambda e: print("done", e))
+            self.players[ctx.guild.id][0].source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(entry.filename, before_options="-ss "+position), volume=playa.volume)
+            try:
+                pos = int(position)
+            except:
+                return await ctx.send("I moved the current position to "+position, delete_after=15)
+            hours = (int(pos/60/60))
+            pos = pos - 60*60*hours
+            mins = (int(pos/60))
+            pos = pos - 60*mins
+            return await ctx.send(f"I moved the current position to {hours:02}:{mins:02}:{pos:02}", delete_after=15)
         except:
             traceback.print_exc()
-    
+
+
+
 class Entry:
     def __init__(self, playlist, queuer, name, duration=0, filename=None, url=None, bass=False, Filepath=None):
         self.downloading = False
@@ -509,16 +562,17 @@ class Entry:
         if self.skipped:
             return await self.playlist.prune_song(self)
         if self.bassy:
-            if not self.boosted:
-                try:
-                    proc = await asyncio.create_subprocess_exec("ffmpeg", "-loglevel", "quiet", "-y", "-i", self.filename, "-af",
-                                                                "bass=g=15", self.filename+"_bass_"+self.filename[-5:])
-                    await proc.wait()
-                    await self.playlist.prune_song(self)
-                    self.filename = self.filename+"_bass_"+self.filename[-5:]
-                except:
-                    traceback.print_exc()
-                self.boosted = True
+            pass
+            # if not self.boosted:
+            #     try:
+            #         proc = await asyncio.create_subprocess_exec("ffmpeg", "-loglevel", "quiet", "-y", "-i", self.filename, "-af",
+            #                                                     "bass=g=15", self.filename+"_bass_"+self.filename[-5:])
+            #         await proc.wait()
+            #         await self.playlist.prune_song(self)
+            #         self.filename = self.filename+"_bass_"+self.filename[-5:]
+            #     except:
+            #         traceback.print_exc()
+            #     self.boosted = True
 
     async def download_play(self, player):
         ''' this downloads and plays a song. this is a fallback for if somehow, a song gets deleted or is never downloaded'''
@@ -549,7 +603,10 @@ class Entry:
             
     def _play_sync(self, player):
         ''' i lied, this plays the song'''
-        player.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(self.filename), volume=self.playlist.volume), after=self._afterplay)
+        if self.bassy:
+            player.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(self.filename, options="-af bass=g=15"), volume=self.playlist.volume), after=self._afterplay)
+        else:
+            player.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(self.filename), volume=self.playlist.volume), after=self._afterplay)
         
     def _afterplay(self, error):
         coro = self.playlist.afterplay(error)
@@ -562,7 +619,7 @@ class Entry:
         
 class Playlist:
     def __init__(self, bot, chan, message, voice_channel, player, ctx):
-        self.bot = bot
+        self.bot = bot #BarryBot
         self.downloader = bot.downloader
         self.entries = deque()
         self.loop = bot.loop
@@ -573,6 +630,7 @@ class Playlist:
         self.volume = 0.3
         self.player = player
         self.stored_ctx = ctx
+        self.waitingTask = None
         
     def __iter__(self):
         return iter(self.entries)
@@ -687,12 +745,19 @@ class Playlist:
                 if len(self.entries) > 1:
                     await self.entries[1].download()
             else:
-                await self.chan.send("The playlist is empty. The music has ended.", delete_after=15)
-                await self.player.players[self.chan.guild.id][0].disconnect()
-                del self.player.players[self.chan.guild.id]
+                lengthoftime = int(self.bot.settings[self.chan.guild.id].features["playerleave"])
+                await self.chan.send("The playlist is empty. The music has ended.", delete_after=lengthoftime)
+                self.waitingTask = asyncio.ensure_future(self._eventually_leave(lengthoftime))
         except:
             traceback.print_exc()
-            
+
+    async def _eventually_leave(self, time):
+        ''' leave the channel eventually, but this is cancellable'''
+        await asyncio.sleep(time)
+        await self.player.players[self.chan.guild.id][0].disconnect()
+        del self.player.players[self.chan.guild.id]
+
+
     async def prune_song(self, given): #given is an Entry object
         ''' given an entry it tries to run an afterplay but doesnt play anything after (basically it just deletes the file)'''
         #removes the song from the directory but still leaves it if it exists later in the playlist for some reason

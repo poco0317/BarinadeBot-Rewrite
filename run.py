@@ -88,9 +88,9 @@ async def on_message(message):
             return
     await bot.process_commands(message)
 
-@bot.event
-async def on_error(event, *args, **kwargs):
-    print("There was an error related directly to a built in event that was uncaught by on_command_error. Here is the event: "+event)
+# @bot.event
+# async def on_error(event, *args, **kwargs):
+#     print("There was an error related directly to a built in event that was uncaught by on_command_error. Here is the event: "+event)
 
 @bot.check
 async def check_serverside_permissions(ctx):
@@ -164,7 +164,7 @@ async def on_command_error(ctx, error):
                 await BarryBot.delete_later(ctx.message, 15)
                 return await ctx.send("```Error\nThere was a Forbidden error while executing the command. Status: "+str(error.original.status)+" Text:"+error.original.text+"```", delete_after=15)
     except:
-        print("error")
+        pass
     # print(error.with_traceback(error))
     # print(error.original)
     # print(dir(error.original))
