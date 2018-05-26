@@ -27,6 +27,7 @@ class GenericPaginator(commands.Paginator):
         p.add_line(line=x + " " + setting.commands[x])
     msg = await ctx.send(p)
     p.msg = msg
+    p.original_msg = (anything that it outside the paginator and shouldnt be changed)
     await p.add_reactions()
     await p.start_waiting()
     '''
@@ -39,6 +40,7 @@ class GenericPaginator(commands.Paginator):
         self.lines_on_a_page = 0
 
         self.msg = None
+        self.original_msg = None
         self.BarryBot = bot
         self.bot = bot.bot
         self.ctx = ctx
@@ -53,6 +55,7 @@ class GenericPaginator(commands.Paginator):
         if self.page_header is not None:
             self.add_line(line=self.page_header)
             self.lines_on_a_page = 0
+            print("added defeault header")
 
 
 
@@ -69,18 +72,20 @@ class GenericPaginator(commands.Paginator):
         if self.lines_on_a_page == 20:
             self.close_page()
 
+
     def close_page(self):
         super().close_page()
+
         if self.page_header is not None:
             self.add_line(line=self.page_header)
+            print("added header again")
         self.lines_on_a_page = 0
-
-
 
     def update_values(self):
         self.totalpages = len(self.pages)
         if self.totalpages > 1:
             self.reactions = True
+        print("values updated")
 
     def current_page(self):
         return self.pages[self.pagenum]
@@ -96,7 +101,9 @@ class GenericPaginator(commands.Paginator):
             self.pagenum = 0
         elif self.pagenum < 0:
             self.pagenum = self.totalpages - 1
-        await self.msg.edit(content="Use the reactions to nagivate the pages."+self.pages[self.pagenum])
+        print(self.pagenum)
+
+        await self.msg.edit(content=self.original_msg+"Use the reactions to nagivate the pages."+self.pages[self.pagenum])
 
     async def add_reactions(self):
         if self.totalpages == 1:

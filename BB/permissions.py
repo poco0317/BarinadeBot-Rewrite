@@ -225,6 +225,30 @@ class Perms:        #this also includes other things like musicplayer and uno pe
             return 1
         return 0
 
+    def get_custom_perms_by_member(mbr, settings):
+        ''' Figure out what level of permissions the user from a member object should have.
+        Returns number of permissions, 5 is bot host, 0 is normie
+        This is meant to be called with no context!!!'''
+        owner_id = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "\\config\\config.ini").owner_id
+        if mbr.id == owner_id:
+            return 5
+        elif mbr.id == mbr.guild.owner.id:
+            permFound = 4
+        elif True in [chan.permissions_for(mbr).administrator for chan in mbr.guild.text_channels]:
+            permFound = 3
+        elif True in [chan.permissions_for(mbr).manage_guild for chan in mbr.guild.text_channels]:
+            permFound = 2
+        elif True in [chan.permissions_for(mbr).manage_messages for chan in mbr.guild.text_channels]:
+            permFound = 1
+        else:
+            permFound = 0
+        roleCheck = -3
+        for role in mbr.roles:
+            if str(role.id) in settings.roles:
+                if int(settings.roles[str(role.id)]) > roleCheck:
+                    roleCheck = int(settings.roles[str(role.id)])
+        return max(permFound, roleCheck)
+
 class not_owner(commands.CommandError):
     pass
 class not_server_owner(commands.CommandError):
@@ -268,7 +292,7 @@ class player_error(commands.CommandError):
         
 class downloaderBroke(player_error):
     def __init__(self, passed_ctx):
-        self.message = "An error occurred when trying to download the file."
+        self.message = "An error occurred when trying to download the file. This should never happen. I suggest you skip this song."
         self.passed_ctx = passed_ctx
         
 class alreadyJoined(player_error):

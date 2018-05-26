@@ -1,4 +1,4 @@
-import os
+import os, errno
 import discord
 import asyncio
 from discord.ext import commands
@@ -163,7 +163,10 @@ class Player: #this represents commands and not an actual player/voicechan objec
                 raise entryFailure
             url = info['entries'][0]['webpage_url']
             info = await self.BarryBot.downloader.get_the_stuff(self.players[ctx.guild.id][1].loop, url, download=False, process=False)
-            
+        try:
+            self.players[ctx.guild.id][1].waitingTask.cancel()
+        except:
+            pass
         if 'entries' in info:
             #basically this would start a loop to queue each song from the list or something
             await change_later.delete()
@@ -414,18 +417,13 @@ class Player: #this represents commands and not an actual player/voicechan objec
             await self.players[ctx.guild.id][1].entries[0].play(self.players[ctx.guild.id][0])
         except:
             traceback.print_exc()
-            
-    @commands.command(hidden=True)
-    @commands.check(Perms.is_owner)
-    async def dirplay(self, ctx, *, song:str):
-        ''' force the bot to play a file
-        Testing only'''
-        self.players[ctx.guild.id][0].play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song), volume=0.5), after=lambda e: print("done", e))
 
-    @commands.command(hidden=True)
+    @commands.command(hidden=True, aliases=["dirplay"])
     @commands.check(Perms.is_owner)
     async def directoryplay(self, ctx, *, song:str):
         ''' play something straight from a filepath
+        also allows the use of -b
+        if you use -b you probably have to use quotes i dunno
         Testing only (functional)'''
 
         # dont need to check for vc unless the command is open to all
@@ -437,9 +435,10 @@ class Player: #this represents commands and not an actual player/voicechan objec
                     if not(self.players[ctx.guild.id][0].is_playing()):
                         await self.summon.invoke(ctx)
         change_later = await ctx.send("Adding manual link...")
-        if not os.path.isfile(song):
-            await change_later.delete()
-            raise specific_error("That file does not exist.")
+        try:
+            self.players[ctx.guild.id][1].waitingTask.cancel()
+        except:
+            pass
         bassboost = False
         if song.split()[0].lower() == "-b":
             if len(song.split()) == 1:
@@ -447,6 +446,9 @@ class Player: #this represents commands and not an actual player/voicechan objec
                 raise specific_error("You can't bass boost nothing.")
             bassboost = True
             song = " ".join(song.split()[1:])
+        if not os.path.isfile(song):
+            await change_later.delete()
+            raise specific_error("That file does not exist.")
         try:
             title = re.search(r"([^\\/]*$)", song).group(0)
             entry, position = await self.players[ctx.guild.id][1].add_entry(queuer=ctx.author, bass=bassboost, forced_info={"title":title, "filepath":song})
@@ -533,8 +535,11 @@ class Entry:
         self.boosted = False
         
     def __str__(self):
-        return "**"+self.name+"** queued by "+self.author+". **Duration**: "+str(datetime.timedelta(seconds=self.duration))
-        
+        if self.bassy:
+            return "**"+self.name+"** queued by "+self.author+". **Duration**: "+str(datetime.timedelta(seconds=self.duration))+" **Bass Boosted**"
+        else:
+            return "**"+self.name+"** queued by "+self.author+". **Duration**: "+str(datetime.timedelta(seconds=self.duration))
+
         
         
     async def download(self):
@@ -627,7 +632,7 @@ class Playlist:
         self.message = message
         self.temp_message = None
         self.voice_channel = voice_channel
-        self.volume = 0.3
+        self.volume = float(bot.settings[chan.guild.id].features["playervol"])/100
         self.player = player
         self.stored_ctx = ctx
         self.waitingTask = None
@@ -753,9 +758,12 @@ class Playlist:
 
     async def _eventually_leave(self, time):
         ''' leave the channel eventually, but this is cancellable'''
-        await asyncio.sleep(time)
-        await self.player.players[self.chan.guild.id][0].disconnect()
-        del self.player.players[self.chan.guild.id]
+        try:
+            await asyncio.sleep(time)
+            await self.player.players[self.chan.guild.id][0].disconnect()
+            del self.player.players[self.chan.guild.id]
+        except:
+            pass
 
 
     async def prune_song(self, given): #given is an Entry object
@@ -781,8 +789,13 @@ class Playlist:
                             os.unlink(given.filename)
                             done = True
                             break
-                        except:
-                            print("couldnt delete currently downloading song")
+                        except OSError as e:
+                            if e.errno == errno.ENOENT:
+                                done = True
+                                print("tried to delete a file that doesn't exist. exiting early.")
+                                break
+                            else:
+                                print("failed to delete currently downloading song")
                             await asyncio.sleep(0.5)
                     if not done:
                         self.loop.call_later(60, self.prune_song_retry, given)

@@ -10,11 +10,12 @@ from discord.ext import commands
 
 #from BB.file import class
 from BB.conf import Conf
-from BB.permissions import Perms
+from BB.permissions import *
 from BB.unogame import The_Game, Uno
 from BB.player import Player, Downloader
 from BB.settings import Settings, ServerSettings
 from BB.mods import Moderation
+from BB.misc import GenericPaginator
 
 
 class Barry(discord.Client):
@@ -74,6 +75,7 @@ class Barry(discord.Client):
     async def cgt(self, ctx):
         '''g'''
         print(ctx.command.name)
+        await ctx.send(str(discord.utils.get(ctx.guild.text_channels, id=0)))
 
     @cgt.command(hidden=True)
     async def rer(self, ctx):
@@ -85,6 +87,122 @@ class Barry(discord.Client):
     @commands.command(hidden=True)
     async def roletest(self, ctx, *, role : discord.Role):
         print(role)
+
+
+    @commands.command(hidden=True)
+    async def atvatar(self, ctx, *, id : str):
+        ''' input id i give avatar ok'''
+        try:
+            await ctx.send((await commands.UserConverter().convert(ctx, id)).avatar_url, delete_after=15)
+        except:
+            traceback.print_exc()
+
+    @commands.command(aliases=["colors"], usage="[color]")
+    async def color(self, ctx, *, colorStr : str = "give me the list"):
+        ''' Change your color to a predefined one
+        This will only work if the feature is enabled on your server and roles have been added to the list of colors
+        To add them to the list, create a role and place it at the top of the hierarchy. Leave the permissions default.
+        Set the color of the role to what you want and use !feat colors to add it to the list of colors.
+        !color              - Show the list of colors available
+        !color [color name] - Set your color to that one
+            Note: If you say the name of your current color, it is removed.
+        !color remove       - Remove your color
+            Note: Naming a color "remove" will make it unusable.
+        '''
+        try:
+            setting = self.settings[ctx.guild.id]
+            if setting.features["colors_Enabled"] == "0":
+                return await ctx.send("Color Roles are not enabled on your server. Ask an Admin about it.", delete_after=15)
+            if len(setting.features["colors_IDs"].split()) == 0:
+                return await ctx.send("Color Roles are enabled but there are no roles set. Ask an Admin about it.", delete_after=15)
+            if colorStr == "give me the list":
+                p = GenericPaginator(self, ctx, markdown="css")
+                for x in setting.features["colors_IDs"].split():
+                    p.add_line(line=str(discord.utils.get(ctx.guild.roles, id=int(x))))
+                msg = await ctx.send("Here is a list of all colors on the server. Pick one using !color [colorname].\n"+str(p))
+                p.msg = msg
+                p.original_msg = "Here is a list of all colors on the server. Pick one using !color [colorname].\n"
+                await p.add_reactions()
+                await p.start_waiting()
+                return
+
+            list_of_colors = {discord.utils.get(ctx.guild.roles, id=int(x)).name:discord.utils.get(ctx.guild.roles, id=int(x)) for x in setting.features["colors_IDs"].split()}
+            if colorStr in list_of_colors:
+                user_roles = {x.name:x for x in ctx.author.roles}
+                if colorStr in user_roles:
+                    try:
+                        await ctx.author.remove_roles(user_roles[colorStr])
+                    except:
+                        raise specific_error("Something went wrong with removing your current color. Permission issue? Other error?")
+                    return await ctx.send("I have removed your color.", delete_after=15)
+                to_remove = set()
+                for x in user_roles:
+                    if x in list_of_colors:
+                        to_remove.add(list_of_colors[x])
+                if len(to_remove) != 0:
+                    await ctx.author.remove_roles(*[x for x in to_remove])
+                try:
+                    await ctx.author.add_roles(list_of_colors[colorStr])
+                except:
+                    raise specific_error("Something went wrong with adding your color. Permission issue? Other error?")
+                return await ctx.send("I have changed your color to "+colorStr, delete_after=15)
+            else:
+                return await ctx.send("That is not a color in the given list. Use proper capitalization. Copy-paste if you have to.", delete_after=15)
+        except:
+            traceback.print_exc()
+
+    @commands.command(aliases=["sub", "unsubscribe", "unsub"], usage="[sublist]")
+    async def subscribe(self, ctx, *, subStr : str = "give me the list"):
+        ''' Subscribe to or unsubscribe from a sublist
+        This will only work if the feature is enabled on your server and roles have been added to the list.
+        To add them to the list, create a role and place it at the bottom of the hierarchy. Leave the permissions default.
+        Set the name to what you want and use !feat sublists to add it to the list.
+        !sub            - Show the list of usable options
+        !sub [name]     - Sub or unsub from a specific option
+        '''
+        setting = self.settings[ctx.guild.id]
+        if setting.features["sublists_Enabled"] == "0":
+            return await ctx.send("Subscribing is not enabled on your server. Ask an Admin about it.", delete_after=15)
+        if len(setting.features["sublists_IDs"].split()) == 0:
+            return await ctx.send("Subscribing is enabled but there are no roles set. Ask an Admin about it.", delete_after=15)
+        if subStr == "give me the list":
+            p = GenericPaginator(self, ctx, page_header='List Name  |  Subscribed (Yes/No)', markdown="css")
+            user_roles = {str(x.id):x for x in ctx.author.roles}
+            for x in setting.features["sublists_IDs"].split():
+                p.add_line(line=str(discord.utils.get(ctx.guild.roles, id=int(x)))+"  -  "+("Yes" if x in user_roles else "No"))
+            msg = await ctx.send("Here is a list of all sublists on the server. Pick any by using !sub [rolename].\n"+str(p))
+            p.msg = msg
+            p.original_msg = "Here is a list of all sublists on the server. Pick any by using !sub [rolename].\n"
+            await p.add_reactions()
+            await p.start_waiting()
+            return
+
+        list_of_subs = {discord.utils.get(ctx.guild.roles, id=int(x)).name:discord.utils.get(ctx.guild.roles, id=int(x)) for x in setting.features["sublists_IDs"].split()}
+        try:
+            if subStr in list_of_subs:
+                user_roles = {x.name:x for x in ctx.author.roles}
+                if subStr in user_roles:
+                    try:
+                        await ctx.author.remove_roles(user_roles[subStr])
+                    except:
+                        raise specific_error("Something went wrong with removing the subscription. Permission issue??")
+                    return await ctx.send("I have unsubbed you from "+subStr, delete_after=15)
+                try:
+                    await ctx.author.add_roles(list_of_subs[subStr])
+                except:
+                    traceback.print_exc()
+                    raise specific_error("Something went wrong with adding your role. Permission issue??")
+                return await ctx.send("I have subscribed you to "+subStr, delete_after=15)
+            else:
+                return await ctx.send("That is not an option in the list. Use proper capitalization. Copy-paste if you have to.", delete_after=15)
+        except:
+            traceback.print_exc()
+
+
+
+
+
+
 
     @commands.command(hidden=True, aliases=["shtudown", "sd", "shtdon", "shutdwon"])
     @commands.check(Perms.is_owner)
@@ -142,6 +260,22 @@ class Barry(discord.Client):
                 p.add_line(line=str(i*i)+"gdsfdsfdasfdsfdsffdsfsdsdfdfdsfsdfsdsdfsfsfdfs")
         print(p.pages)
         await ctx.send(p.pages[0])
+
+    @commands.command(hidden=True)
+    async def embedtest(self, ctx):
+        try:
+            e = discord.Embed(title="Title", description="Description\nDescription line 2", url="https://google.com", timestamp=ctx.message.created_at, color=discord.Color.dark_red())
+            e.set_author(name="author name", url="https://google.com", icon_url=ctx.author.avatar_url)
+            e.set_footer(text="footer text", icon_url="https://b.thumbs.redditmedia.com/lFyUdvrOpXS9hrZQDKK-iH3QEq7JyhH909SZZfSsszA.jpg")
+            e.set_image(url="https://b.thumbs.redditmedia.com/BW9495LYTE5NugV2--7Vi7BhzyJtnTAILhoj9RcqVYI.jpg")
+            e.set_thumbnail(url="https://b.thumbs.redditmedia.com/-TND4M2kMG9KaEzhgwpUmgvIqJEYm6fUC_IMljjS_DA.jpg")
+            e.add_field(name="field name 1", value="field value 1")
+            e.add_field(name="field name 2", value="field value 2")
+
+
+            await ctx.send(embed=e)
+        except:
+            traceback.print_exc()
 
 
 
