@@ -55,7 +55,6 @@ class GenericPaginator(commands.Paginator):
         if self.page_header is not None:
             self.add_line(line=self.page_header)
             self.lines_on_a_page = 0
-            print("added defeault header")
 
 
 
@@ -78,14 +77,12 @@ class GenericPaginator(commands.Paginator):
 
         if self.page_header is not None:
             self.add_line(line=self.page_header)
-            print("added header again")
         self.lines_on_a_page = 0
 
     def update_values(self):
         self.totalpages = len(self.pages)
         if self.totalpages > 1:
             self.reactions = True
-        print("values updated")
 
     def current_page(self):
         return self.pages[self.pagenum]
@@ -101,7 +98,6 @@ class GenericPaginator(commands.Paginator):
             self.pagenum = 0
         elif self.pagenum < 0:
             self.pagenum = self.totalpages - 1
-        print(self.pagenum)
 
         await self.msg.edit(content=self.original_msg+"Use the reactions to nagivate the pages."+self.pages[self.pagenum])
 
@@ -144,3 +140,15 @@ class GenericPaginator(commands.Paginator):
     async def close_paginator(self):
         self.ended = True
         await self.msg.delete()
+
+class ChanOrMember(commands.Converter):
+    '''Converts a string to a member or a channel'''
+
+    async def convert(self, ctx, argument):
+        try:
+            return await commands.MemberConverter().convert(ctx, argument)
+        except:
+            try:
+                return await commands.TextChannelConverter().convert(ctx, argument)
+            except:
+                return None

@@ -170,10 +170,10 @@ class Moderation:
                 return await ctx.send("I have deleted {} message(s) including your own...".format(len(ripped)), delete_after=5)
             else:
                 try:
-                    amount_to_delete = int(args[0])
+                    amount_to_delete = int(args[0]) + 1
                 except:
                     try:
-                        amount_to_delete = int(args[1])
+                        amount_to_delete = int(args[1]) + 1
                     except:
                         pass
                 try:
@@ -228,7 +228,7 @@ class Moderation:
                     await delete_later.delete()
                     raise specific_error("I attempted to delete a number of messages from a member in this channel but failed. Maybe I don't have permission?")
                 await delete_later.delete()
-                return await ctx.send("I have deleted {} message(s) from {}...".format(len(ripped), member_to_delete.name))
+                return await ctx.send("I have deleted {} message(s) from {}...".format(len(ripped), member_to_delete.name), delete_after=5)
             else:
                 raise specific_error("You likely entered something that didn't make sense. Check !help delete for more info.")
         except:
@@ -249,7 +249,7 @@ class Moderation:
 
         try:
             if len(args) == 0:
-                delete_later = await ctx.send("I will be attempting to clear the entire history of this channel.\nHit me with a 👌 to confirm this (you have 15 seconds)")
+                delete_later = await ctx.send("I will be attempting to clear the entire history of this channel ("+ctx.channel.name+").\nHit me with a 👌 to confirm this (you have 15 seconds)")
                 await delete_later.add_reaction("👌")
                 try:
                     await self.bot.wait_for("reaction_add", check=check_if_author, timeout=15)
@@ -257,7 +257,7 @@ class Moderation:
                     return await delete_later.delete()
                 await delete_later.edit(content="Working....")
                 try:
-                    ripped = await ctx.channel.purge(limit=0, check=None, before=delete_later, bulk=True)
+                    ripped = await ctx.channel.purge(limit=9999999, check=None, before=delete_later, bulk=True)
                 except:
                     await delete_later.delete()
                     raise specific_error("I attempted to delete every message from this channel but encountered an error while trying. Maybe I don't have permission?")
@@ -276,7 +276,7 @@ class Moderation:
                         def check_if_bot(message):
                             return message.author.bot
                         for chan in ctx.guild.text_channels:
-                            await chan.purge(limit=0, check=check_if_bot, before=delete_later, bulk=True)
+                            await chan.purge(limit=999999, check=check_if_bot, before=delete_later, bulk=True)
                     except:
                         await delete_later.delete()
                         raise specific_error("I attempted to delete every bot message from this server but encountered an error while trying. Maybe I don't have permission?")
@@ -294,7 +294,7 @@ class Moderation:
                         def check_if_phrase(message):
                             return " ".join(args[1:]) in message.content
                         for chan in ctx.guild.text_channels:
-                            await chan.purge(limit=0, check=check_if_phrase, before=delete_later, bulk=True)
+                            await chan.purge(limit=999999, check=check_if_phrase, before=delete_later, bulk=True)
                     except:
                         await delete_later.delete()
                         raise specific_error("I attempted to delete every message on the server containing a phrase and encountered an error while trying. Maybe I don't have permission?")

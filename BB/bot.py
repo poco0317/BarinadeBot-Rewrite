@@ -1,12 +1,15 @@
 import os
 import re
 import asyncio
+import unicodedata
 import aiohttp
 import random
 import discord
 import traceback
 
 from discord.ext import commands
+from decimal import Decimal
+
 
 #from BB.file import class
 from BB.conf import Conf
@@ -16,15 +19,20 @@ from BB.player import Player, Downloader
 from BB.settings import Settings, ServerSettings
 from BB.mods import Moderation
 from BB.misc import GenericPaginator
+from BB.idlerpg import *
+from BB.bar import *
+from BB.reminder import Reminders
 
 
 class Barry(discord.Client):
 
     def __init__(self, bot, loop):
-        self.config = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))+"\\config\\config.ini")
+        self.config = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))+"/config/config.ini")
         self.THE_SECRET_TOKEN = self.config.THE_TOKEN
         self.loop = loop
         self.bot = bot
+
+        self.BarTalk_sessions = {}
         self.downloader = Downloader(self.config.download_path)
         self.bot.add_cog(MainCommands(self.bot, self.config)) #add the main command class for laziness sake
         self.bot.add_cog(self) #also a cheaty way to just fit all the commands into this class
@@ -32,14 +40,23 @@ class Barry(discord.Client):
         self.bot.add_cog(Player(self.bot, self.config, self.loop, self))
         self.bot.add_cog(Settings(self.bot, self.config, self.loop, self))
         self.bot.add_cog(Moderation(self.bot, self.config, self.loop, self))
+        #self.bot.add_cog(RPG(self.bot, self.config, self.loop, self))
+        self.bot.add_cog(BarTalk(self.bot, self.config, self))
+        self.bot.add_cog(Reminders(self.bot, self.config, self.loop, self))
+
         self.UnoGames = {}
+        self.RPGSessions = {}
         self.settings = {}
         self.paginators = set()
+        self.streamMessages = {}
         
         self.logchan = None
-        
-        
+
+
         self.blacklist = set()
+
+        decimal.getcontext().prec = 800
+
         
         
         super().__init__()
@@ -54,13 +71,44 @@ class Barry(discord.Client):
         except: # something is terribly wrong with the context
             print("something broke")
             return None
-        
+
+
+    def initializeRPGSessions(self):
+        '''Just set the dict up'''
+        print(self.bot.guilds)
+        #print(self.guilds)
+        for g in self.bot.guilds:
+            print(g)
+            try:
+                if self.settings[g.id].features["rpg_Enabled"] == "1":
+                    chanID = self.settings[g.id].features["rpg_channel_ID"]
+                    chan = discord.utils.get(g.text_channels, id=int(chanID))
+                    if chan is None:
+                        print("RPG channel for guild "+g.name+" ID "+str(g.id)+" not found.")
+                    else:
+                        self.RPGSessions[g.id] = RPGSession(self.bot, g, chan, self)
+            except:
+                traceback.print_exc()
+
+    async def createBarTalkSessions(self):
+        '''Fired at on_ready to create the bar sessions, resetting the brain and everything on login'''
+        self.BarTalk_sessions = {}
+        for guild in self.bot.guilds:
+            self.BarTalk_sessions[guild.id] = Brain(guild.id, self.config)
+        print("Brain fully reinitialized...")
+
+    def createSingleBarTalkSession(self, guildID):
+        '''Fires on server join. Only for this purpose'''
+        self.BarTalk_sessions[guildID] = Brain(guild.id, self.config)
+        print("I joined a new server. I have created a default BarTalk memory for it.")
+
+
     @commands.command(hidden=True)
     async def blacklistme(self, ctx):
         self.blacklist.add(ctx.message.author.id)
 
     @commands.command(hidden=True)
-    @commands.check(Perms.is_owner)
+    #@commands.check(Perms.is_owner)
     async def respond(self, ctx, *, words):
         '''Literally replies with exactly what you said'''
         await ctx.send(words)
@@ -87,6 +135,18 @@ class Barry(discord.Client):
     @commands.command(hidden=True)
     async def roletest(self, ctx, *, role : discord.Role):
         print(role)
+
+    @commands.command(hidden=True)
+    async def mathmult(self, ctx, *, words):
+        '''Multiply all arguments repeatedly.'''
+        result = Decimal("1.0")
+        args = words.split()
+        for g in args:
+            try:
+                result = Decimal(g) * result
+            except:
+                pass
+        await ctx.send("Heres the answer lmao: "+str(result))
 
 
     @commands.command(hidden=True)
@@ -211,6 +271,18 @@ class Barry(discord.Client):
         await self.logout()
         await self.bot.logout()
 
+    @commands.command()
+    async def emoji(self, ctx):
+        ''' Send back the code for the emote found'''
+        try:
+            output = ""
+            for char in " ".join(ctx.message.content.split()[1:]):
+                num = f'{ord(char):x}'
+                output += "\n"+unicodedata.name(char, "oof")+" "+f'\\U{num:>08}'
+            await ctx.send(output)
+        except:
+            traceback.print_exc()
+
 
     
     async def delete_later(self, message, time=15): #self.loop.create_task(self._actually_delete_later(message, time))
@@ -271,6 +343,21 @@ class Barry(discord.Client):
             e.set_thumbnail(url="https://b.thumbs.redditmedia.com/-TND4M2kMG9KaEzhgwpUmgvIqJEYm6fUC_IMljjS_DA.jpg")
             e.add_field(name="field name 1", value="field value 1")
             e.add_field(name="field name 2", value="field value 2")
+            e.add_field(name="field name 3", value="field value 2")
+            e.add_field(name="field name 4", value="field value 2")
+            e.add_field(name="field name 5", value="field value 2")
+            e.add_field(name="field name 6", value="field value 2")
+            e.add_field(name="field name 7", value="field value 2")
+            e.add_field(name="field name 8", value="field value 2")
+            e.add_field(name="field name 9", value="field value 2")
+            e.add_field(name="field name 10", value="field value 2")
+            e.add_field(name="field name 11", value="field value 2")
+            e.add_field(name="field name 12", value="field value 2")
+            e.add_field(name="field name 13", value="field value 2")
+            e.add_field(name="field name 14", value="field value 2")
+            e.add_field(name="field name 15", value="field value 2")
+            e.add_field(name="field name 16", value="field value 2")
+            e.add_field(name="field name 17", value="field value 2")
 
 
             await ctx.send(embed=e)

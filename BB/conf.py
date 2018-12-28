@@ -1,6 +1,7 @@
 import configparser
 import os
 import shutil
+import traceback
 
 class Conf:
     def __init__(self, conf):
@@ -13,6 +14,7 @@ class Conf:
             try:
                 shutil.copy(os.path.dirname(self.options)+"/example_config.ini", self.options)
             except:
+                traceback.print_exc()
                 print("Well... Somehow the example I was copying from is also gone. You're in a bad spot.")
             os._exit(1)
             
@@ -21,6 +23,16 @@ class Conf:
         self.THE_TOKEN = config.get("Login", "Token", fallback=Fallbacks.token)
         self.owner_id = int(config.get("Permissions", "OwnerID", fallback=Fallbacks.ownerID))
         self.download_path = config.get("Music", "Path", fallback=Fallbacks.download_path)
+        self.stopwords_path = config.get("BarTalk", "Stop_words_Path", fallback=Fallbacks.stopword_path)
+        self.stopwords = set()
+        if self.stopwords_path != "":
+            try:
+                f = open(self.stopwords_path, "r")
+                for line in f:
+                    self.stopwords.add(line.strip())
+                f.close()
+            except:
+                pass
 
         
         
@@ -28,3 +40,4 @@ class Fallbacks: #these will only get used if the user leaves the config.ini exi
     token = "0"
     ownerID = 0
     download_path = ""
+    stopword_path = ""

@@ -253,7 +253,7 @@ class Settings:
         # many wait_fors and many checks
         # ifs to check what the reply was, what to do... etc
         setting = self.BarryBot.settings[ctx.guild.id]
-        list_of_feature_names = {"playerleave", "playervol", "defaultchannel", "defaultrole", "welcome", "wotd", "quotesfrompins", "ignoredchans", "nocommandchans", "nologchans", "logging", "modchan", "logchan", "filteredwords", "capsspam", "bar", "filterlinks", "sublists", "colors"}
+        list_of_feature_names = {"playerleave", "playervol", "defaultchannel", "defaultrole", "welcome", "wotd", "quotesfrompins", "ignoredchans", "nocommandchans", "nologchans", "logging", "modchan", "logchan", "filteredwords", "capsspam", "bar", "filterlinks", "sublists", "colors", "rpg", "stream"}
 
         # unfortunately we are also about to do something you never want to see ever
         # there isn't much of a better way to do it that i can tell without making every single feature an object
@@ -294,7 +294,9 @@ class Settings:
                 p.add_line(line=" Channels: "+", ".join([str(discord.utils.get(ctx.guild.text_channels, id=int(x))) for x in setting.features["nologgingchans_IDs"].split()]))
                 p.add_line(line="logging - Watch everywhere for things that happen, report them in a log channel (These are not saved locally!)")
                 p.add_line(line=" Enabled: "+str(bool(int(setting.features["logging_Enabled"]))))
+                p.add_line(line=" Log TTS: "+str(bool(int(setting.features["log_tts_Enabled"]))))
                 p.add_line(line=" Log Deletes: "+str(bool(int(setting.features["log_deletes_Enabled"]))))
+                p.add_line(line=" Ignore Message Prefixes: "+str(", ".join(setting.features["log_deletes_Ignores"].split())))
                 p.add_line(line=" Log Edits: "+str(bool(int(setting.features['log_edits_Enabled']))))
                 p.add_line(line=" Log Leaves: "+str(bool(int(setting.features["log_leaves_Enabled"]))))
                 p.add_line(line=" Log Kicks: "+str(bool(int(setting.features["log_kicks_Enabled"]))))
@@ -335,6 +337,12 @@ class Settings:
                 p.add_line(line="colors - Roles which can be joined by anyone for the purpose of colors")
                 p.add_line(line=" Enabled: "+str(bool(int(setting.features["colors_Enabled"]))))
                 p.add_line(line=" Roles: "+", ".join([str(discord.utils.get(ctx.guild.roles, id=int(x))) for x in setting.features["colors_IDs"].split()]))
+                p.add_line(line="rpg - An Idle RPG where you gain XP and stats by doing nothing")
+                p.add_line(line=" Enabled: "+str(bool(int(setting.features["rpg_Enabled"]))))
+                p.add_line(line=" Channel: "+str(discord.utils.get(ctx.guild.text_channels, id=int(setting.features["rpg_channel_ID"]))))
+                p.add_line(line="stream - Stream Alerts for any member in the server")
+                p.add_line(line=" Enabled: "+str(bool(int(setting.features["stream_Enabled"]))))
+                p.add_line(line=" Channel: "+str(discord.utils.get(ctx.guild.text_channels, id=int(setting.features["stream_channel_ID"]))))
                 #if p.lines_on_a_page == 0 and p.pagenum == 0:
                 #    p.add_line(line="Something is terribly wrong here...........")
                 msg = await ctx.send("Here is a list of all the features available to your server. Modify them using !feat [featurename]. Do not specify things like 'IDs' or 'Time.'\n"+str(p))
@@ -505,7 +513,9 @@ class Settings:
                         return False
         if the_feature == "logging":
             logging = setting.num_to_bool("Features", "logging_Enabled")
+            tts = setting.num_to_bool("Features", "log_tts_Enabled")
             dels = setting.num_to_bool("Features", "log_deletes_Enabled")
+            ignored_dels = ", ".join(setting.features["log_deletes_Ignores"].split())
             edits = setting.num_to_bool("Features", "log_edits_Enabled")
             leaves = setting.num_to_bool("Features", "log_leaves_Enabled")
             kicks = setting.num_to_bool("Features", "log_kicks_Enabled")
@@ -520,8 +530,8 @@ class Settings:
             filtered = setting.num_to_bool("Features", "log_filteredWords_Enabled")
             invitecreate = setting.num_to_bool("Features", "log_inviteCreate_Enabled")
             invitedelete = setting.num_to_bool("Features", "log_inviteDelete_Enabled")
-            choices = {"logging", "deletes", "edits", "leaves", "kicks", "bans", "joins", "chansetting", "serversetting", "userroles", "usernick", "rolechange", "capsspam", "filtered", "invcreate", "invdelete"}
-            delete_later = await ctx.send("Feature Found: Logging. Enabling this will allow the bot to begin relaying certain server-wide events that may or may not concern administrators to a channel for moderators or administrators. None of the content is actually saved by the bot locally.\nReply with `cancel` or wait 30 seconds to do nothing.\nReply with `t` to toggle this feature on or off.\nReply with the name of any sub-feature to toggle it.\nI will ignore you until you use the correct syntax.\nLogging Enabled: {}\ndeletes: {} - Deleted messages will be reposted upon deletion\nedits: {} - Edited messages will be reposted, showing the changes\nleaves: {} - Triggered when anyone leaves the server\nkicks: {} - Triggered when anyone is kicked from the server\nbans: {} - Triggered when anyone is banned from the server\njoins: {} - Triggered when anyone joins the server\nchansetting: {} - Shows when settings are changed for any channel\nserversetting: {} - Shows when the server settings are changed\nuserroles: {} - Shows when a user gains or loses a role\nusernick: {} - Shows nickname changes\nrolechange: {} - Shows when a role has been changed\ncapsspam: {} - Triggered when all caps are spammed somewhere. See the capsSpam feature for more\nfiltered: {} - Triggered when filtered words are used. See the filterWords feature for more\ninvcreate: {} - Triggered on invite creation\ninvdelete: {} - Triggered on invite deletion".format(logging, dels, edits, leaves, kicks, bans, joins, chansetting, serversetting, userrole, usernick, rolechange, capsspam, filtered, invitecreate, invitedelete))
+            choices = {"logging", "tts", "deletes", "prefixes", "edits", "leaves", "kicks", "bans", "joins", "chansetting", "serversetting", "userroles", "usernick", "rolechange", "capsspam", "filtered", "invcreate", "invdelete"}
+            delete_later = await ctx.send("Feature Found: Logging. Enabling this will allow the bot to begin relaying certain server-wide events that may or may not concern administrators to a channel for moderators or administrators. None of the content is actually saved by the bot locally.\nReply with `cancel` or wait 30 seconds to do nothing.\nReply with `t` to toggle this feature on or off.\nReply with the name of any sub-feature to toggle it.\nI will ignore you until you use the correct syntax.\nLogging Enabled: {}\ntts: {} - Send an alert when a /TTS message is sent\ndeletes: {} - Deleted messages will be reposted upon deletion\nprefixes: {} - Deleted messages starting with these prefixes are ignored\nedits: {} - Edited messages will be reposted, showing the changes\nleaves: {} - Triggered when anyone leaves the server\nkicks: {} - Triggered when anyone is kicked from the server\nbans: {} - Triggered when anyone is banned from the server\njoins: {} - Triggered when anyone joins the server\nchansetting: {} - Shows when settings are changed for any channel\nserversetting: {} - Shows when the server settings are changed\nuserroles: {} - Shows when a user gains or loses a role\nusernick: {} - Shows nickname changes\nrolechange: {} - Shows when a role has been changed\ncapsspam: {} - Triggered when all caps are spammed somewhere. See the capsSpam feature for more\nfiltered: {} - Triggered when filtered words are used. See the filterWords feature for more\ninvcreate: {} - Triggered on invite creation\ninvdelete: {} - Triggered on invite deletion".format(logging, tts, dels, ignored_dels, edits, leaves, kicks, bans, joins, chansetting, serversetting, userrole, usernick, rolechange, capsspam, filtered, invitecreate, invitedelete))
             def check(message):
                 if message.author.id == ctx.author.id:
                     try:
@@ -640,6 +650,36 @@ class Settings:
             def check(message):
                 if message.author.id == ctx.author.id:
                     if message.content.lower() in guild_roles_ids or message.content.lower() in guild_roles_mentions or message.content in guild_roles_names or message.content.lower() == "t" or message.content.lower() == "cancel":
+                        return True
+        if the_feature == 'rpg':
+            guild_channels_names = [chan.name for chan in ctx.guild.text_channels]
+            guild_channels_mentions = [chan.mention for chan in ctx.guild.text_channels]
+            guild_channels_ids = [chan.id for chan in ctx.guild.text_channels]
+            rpg_enable = setting.num_to_bool("Features", "rpg_Enabled")
+            try:
+                foundchan = discord.utils.get(ctx.guild.text_channels, id=int(setting.features["rpg_channel_ID"])).name
+            except:
+                foundchan = "NO CHANNEL"
+
+            delete_later = await ctx.send("Feature Found: Idle RPG. Enabling this and specifying a channel will allow any user to join and participate in an Idle RPG. You earn XP and other things by doing nothing.\nReply with `cancel` or wait 30 seconds to do nothing.\nReply with `t` to toggle Idle RPG on or off.\nReply with a channel mention, ID, or name to set one.\nIdle RPG is: {}\nChannel: {}".format(rpg_enable, foundchan))
+            def check(message):
+                if message.author.id == ctx.author.id:
+                    if message.content.lower() in guild_channels_ids or message.content.lower() in guild_channels_mentions or message.content in guild_channels_names or message.content.lower() == "t" or message.content.lower() == "cancel":
+                        return True
+        if the_feature == 'stream':
+            guild_channels_names = [chan.name for chan in ctx.guild.text_channels]
+            guild_channels_mentions = [chan.mention for chan in ctx.guild.text_channels]
+            guild_channels_ids = [chan.id for chan in ctx.guild.text_channels]
+            stream_enable = setting.num_to_bool("Features", "stream_Enabled")
+            try:
+                foundchan = discord.utils.get(ctx.guild.text_channels, id=int(setting.features["stream_channel_ID"])).name
+            except:
+                foundchan = "NO CHANNEL"
+
+            delete_later = await ctx.send("Feature Found: Stream Notifications. Enabling this and specifying a channel will make it so that when any member of the server sets their status to Streaming, I update the channel with that information.\nReply with `cancel` or wait 30 seconds to do nothing.\nReply with `t` to toggle Stream Alerts on or off.\nReply with a channel mention, ID, or name to set one.\nStream Alerts are: {}\nChannel: {}".format(stream_enable, foundchan))
+            def check(message):
+                if message.author.id == ctx.author.id:
+                    if message.content.lower() in guild_channels_ids or message.content.lower() in guild_channels_mentions or message.content in guild_channels_names or message.content.lower() == "t" or message.content.lower() == "cancel":
                         return True
 
 
@@ -798,6 +838,9 @@ class Settings:
                         return await ctx.send("I have enabled logging for this server.", delete_after=15)
                 to_work = None
                 finalstr = None
+                if msg.content.lower() == "tts":
+                    to_work = "log_tts_Enabled"
+                    finalstr = "Logging TTS Usage"
                 if msg.content.lower() == "deletes":
                     to_work = "log_deletes_Enabled"
                     finalstr = "Logging Deletions"
@@ -843,6 +886,35 @@ class Settings:
                 elif msg.content.lower() == "invdelete":
                     to_work = "log_inviteDelete_Enabled"
                     finalstr = "Logging Invite Deletion"
+                elif msg.content.lower() == "prefixes":
+                    # we do it differently here :)
+                    ignored_dels_list = setting.features["log_deletes_Ignores"].split()
+                    ignored_dels =  ", ".join(ignored_dels_list)
+                    additional_msg = await ctx.send("The current prefixes the Delete Logger ignores are:\n"+ignored_dels+"\n\nSay any from this list to remove it. Say a new one to add. Input must be 1 word. Not case sensitive. Wait 15 seconds or say `cancel` to exit.")
+                    def check(message):
+                        if message.author.id == ctx.author.id:
+                            return True
+                    try:
+                        msg = await self.bot.wait_for("message", check=check, timeout=15)
+                    except:
+                        return await additional_msg.delete()
+                    await additional_msg.delete()
+                    if msg.content.lower() == "cancel":
+                        await msg.delete()
+                        return await ctx.send("Exited the feature editor without changing anything.", delete_after=15)
+                    actual_param = msg.content.lower().split()[0]
+                    if actual_param in ignored_dels:
+                        ignored_dels_list.remove(actual_param)
+                        ignored_dels = " ".join(ignored_dels_list)
+                        print(setting.modify("Features", "log_deletes_Ignores", ignored_dels))
+                        return await ctx.send("I have removed '"+actual_param+"' from the list.", delete_after=15)
+                    else:
+                        ignored_dels_list.append(actual_param)
+                        ignored_dels = " ".join(ignored_dels_list)
+                        print(setting.modify("Features", "log_deletes_Ignores", ignored_dels))
+                        return await ctx.send("I have added '"+actual_param+"' to the list.", delete_after=15)
+
+
                 if setting.features["logging_Enabled"] == "0":
                     setting.toggle("Features", "logging_Enabled")
                 setting.toggle("Features", to_work)
@@ -991,7 +1063,46 @@ class Settings:
                 color_roles.append(str(foundrole.id))
                 setting.modify("Features", 'colors_IDs', " ".join(color_roles))
                 return await ctx.send("I have added that role to the list of roles considered colors"+finalstr, delete_after=15)
-
+            if the_feature == "rpg":
+                if msg.content.lower() == "t":
+                    try:
+                        foundchan = discord.utils.get(ctx.guild.text_channels,id=int(setting.features["rpg_channel_ID"]))
+                    except:
+                        foundchan = None
+                    if foundchan is None:
+                        return await ctx.send("I could not enable the Idle RPG because a channel was not set. Set a channel first.", delete_after=15)
+                    setting.toggle("Features", "rpg_Enabled")
+                    return await ctx.send("Idle RPG has been toggled to "+setting.num_to_bool("Features", "rpg_Enabled"), delete_after=15)
+                try:
+                    foundchan = await commands.TextChannelConverter().convert(await self.bot.get_context(msg), msg.content)
+                except:
+                    foundchan = None
+                if foundchan is not None:
+                    setting.modify("Features", "rpg_channel_ID", str(foundchan.id))
+                    if setting.features["rpg_Enabled"] != "1":
+                        setting.toggle("Features", "rpg_Enabled")
+                        return await ctx.send("Idle RPG has been toggled on and I've set the channel to "+foundchan.name, delete_after=15)
+                    return await ctx.send("I have changed the Idle RPG channel to "+foundchan.name, delete_after=15)
+            if the_feature == 'stream':
+                if msg.content.lower() == "t":
+                    try:
+                        foundchan = discord.utils.get(ctx.guild.text_channels, id=int(setting.features["stream_channel_ID"]))
+                    except:
+                        foundchan = None
+                    if foundchan is None:
+                        return await ctx.send("I could not enable Stream Alerts because a channel was not set. Set a channel first.", delete_after=15)
+                    setting.toggle("Features", "stream_Enabled")
+                    return await ctx.send("Stream Alerts have been toggled to "+setting.num_to_bool("Features", "stream_Enabled"), delete_after=15)
+                try:
+                    foundchan = await commands.TextChannelConverter().convert(await self.bot.get_context(msg), msg.content)
+                except:
+                    foundchan = None
+                if foundchan is not None:
+                    setting.modify("Features", "stream_channel_ID", str(foundchan.id))
+                    if setting.features["stream_Enabled"] != "1":
+                        setting.toggle("Features", "stream_Enabled")
+                        return await ctx.send("Stream Alerts have been toggled on and I've set the channel to "+foundchan.name, delete_after=15)
+                    return await ctx.send("I have changed the Stream Alert channel to "+foundchan.name, delete_after=15)
 
 
 
@@ -1456,6 +1567,20 @@ class ServerSettings:
         '''Check all specific settings which reference IDs to make sure they still point to something and also to make sure all settings which should be IDs are IDs'''
         pass
 
+    def validateID(self, chanID, guild):
+        '''Check a given channel ID in a server to see if it is legitimate'''
+        return chanID in [chan.id for chan in guild.channels]
+
+    def validateIDType(self, chanID, guild, chantype):
+        '''Check a given channel ID in a server against a type'''
+        if chantype == 'text':
+            return int(chanID) in [chan.id for chan in guild.text_channels]
+        elif chantype == 'voice':
+            return int(chanID) in [chan.id for chan in guild.voice_channels]
+        elif chantype == 'category':
+            return int(chanID) in [chan.id for chan in guild.categories]
+        return False
+
     def get_default(self, section, name):
         '''Find the default value for a setting'''
         configger = configparser.ConfigParser(interpolation=None)
@@ -1554,7 +1679,7 @@ class ServerSettings:
         ''' change a setting
         if its a setting that holds a list, make sure its the right kind of value'''
         try:
-            checks = {"defaultchannel_ID", "defaultrole_ID", "quotesfrompins_Ignored_IDs", "ignoredchans_IDs", "nocommandchans_IDs", "nologgingchans_IDs", "bar_listenchan_IDs", "bar_ignoreuser_IDs", "sublists_IDs", "colors_IDs"}
+            checks = {"defaultchannel_ID", "defaultrole_ID", "quotesfrompins_Ignored_IDs", "ignoredchans_IDs", "nocommandchans_IDs", "nologgingchans_IDs", "bar_listenchan_IDs", "bar_ignoreuser_IDs", "sublists_IDs", "colors_IDs", "rpg_channel_ID", "stream_channel_ID"}
             if name in checks:
                 to_remove = []
                 for x in value.split():
@@ -1571,6 +1696,7 @@ class ServerSettings:
                 self.config.write(file)
             return True
         except:
+            traceback.print_exc()
             return False
 
     def toggle(self, section, name):

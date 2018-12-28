@@ -10,7 +10,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
     #EZ Admin check: commands.has_permissions(manage_server=True)
     
     def is_owner(ctx):
-        owner_id = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))+"\\config\\config.ini").owner_id
+        owner_id = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))+"/config/config.ini").owner_id
         if ctx.message.author.id != owner_id:
             raise not_owner
         return True
@@ -229,7 +229,7 @@ class Perms:        #this also includes other things like musicplayer and uno pe
         ''' Figure out what level of permissions the user from a member object should have.
         Returns number of permissions, 5 is bot host, 0 is normie
         This is meant to be called with no context!!!'''
-        owner_id = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "\\config\\config.ini").owner_id
+        owner_id = Conf(os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/config/config.ini").owner_id
         if mbr.id == owner_id:
             return 5
         elif mbr.id == mbr.guild.owner.id:

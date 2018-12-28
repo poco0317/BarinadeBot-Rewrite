@@ -8,9 +8,12 @@ import traceback
 import datetime
 import sys
 import re
+import os
 
-loop = asyncio.ProactorEventLoop()
-asyncio.set_event_loop(loop)
+if os.name == "nt":
+    loop = asyncio.ProactorEventLoop()
+    asyncio.set_event_loop(loop)
+
 print("Barinade Bot Beginning...")
 bot = commands.Bot(command_prefix="~", description="I am a sunglasses-wearing shiba running out, eager to steal your money and provide you services in return.\nAlso please use the help command on a command you don't get 100%. I promise you will understand.")
 #all the bot events must go in this file
@@ -45,8 +48,10 @@ async def on_ready():
     try:
         BarryBot.loop.create_task(BarryBot.check_looper_fast())
         BarryBot.loop.create_task(BarryBot.check_looper_slow())
+        BarryBot.loop.create_task(BarryBot.createBarTalkSessions())
     except:
         traceback.print_exc()
+
 
 
 @bot.event
@@ -71,6 +76,17 @@ async def on_message(message):
 
         return
 
+    if message.tts:
+        if BarryBot.settings[message.guild.id].features["logging_Enabled"] == "1" and BarryBot.settings[message.guild.id].features["log_tts_Enabled"] == "1":
+            try:
+                foundchan = discord.utils.get(message.guild.text_channels, id=int(BarryBot.settings[message.guild.id].features["logchan_ID"]))
+                e = discord.Embed(description="By "+message.author.mention+" in "+message.channel.name+"\n\nContent:\n\n"+message.content, color=discord.Color.dark_red(), timestamp=message.created_at)
+                e.set_author(name="Text To Speech Message Sent")
+                e.set_footer(text="TTS Message Spotted! Disable this with the 'feature' command.", icon_url=BarryBot.bot.user.avatar_url)
+                await foundchan.send(embed=e)
+            except:
+                pass
+
     if message.content.startswith(bot.command_prefix):
         ctx = await bot.get_context(message)
         setting = BarryBot.settings[message.guild.id]
@@ -88,6 +104,69 @@ async def on_message(message):
                 await on_command_error(ctx, e)
             return
     await bot.process_commands(message)
+
+    try:
+        mentionlist = set()
+        if message.mentions:
+            for member in message.mentions:
+                mentionlist.add(member.id)
+        if str(message.channel.id) in BarryBot.BarTalk_sessions[message.guild.id].listened_channels and str(message.author.id) not in BarryBot.BarTalk_sessions[message.guild.id].ignored_users and (message.content.lower().startswith(("bar ", "barry", "bar.", "bar, ", "bar?", "bar!", "bartholomew ", "bartholomew, ")) or bot.user.id in mentionlist or message.content.lower() in ["bar", "barry", "bartholomew"] or message.content.lower().endswith(("bar.", "bar", "bar!", "bar?", "bartholomew.", "bartholomew?", "bartholomew!"))):
+            ctx = await bot.get_context(message)
+            try:
+                await ctx.send(BarryBot.BarTalk_sessions[message.guild.id].response(message.content, message.guild))
+            except:
+                traceback.print_exc()
+    except:
+        traceback.print_exc()
+
+    try:
+        if message.content.isprintable() and not message.author.bot:
+            if re.sub("[\s.!,&?'-]", "", message.content).isalnum() and message.content[0].isalnum() and str(message.channel.id) in BarryBot.BarTalk_sessions[message.guild.id].listened_channels and str(message.author.id) not in BarryBot.BarTalk_sessions[message.guild.id].ignored_users:
+                theFinalMsg = message.content
+                theFinalMsgList = theFinalMsg.split()
+                if len(theFinalMsg) > 5 and len(theFinalMsg.split()) > 1:
+                    if not theFinalMsg[1:4].isalnum(): # this is an obscure check to see whether or not a message found is a weird bot command prefix
+                        theFinalMsgList = theFinalMsg.split()[1:]
+                        theFinalMsg = " ".join(theFinalMsgList)
+                if len(theFinalMsgList) <= 2:
+                    return
+                for word in theFinalMsgList:    # check for words which are all the same letter (repeat of 3 letters)
+                    repeats = 0
+                    for i in range(len(word)-1):
+                        if word[i] == word[i+1]:
+                            repeats += 1
+                        if repeats >= 3:
+                            return
+                tmpDct = {}
+                tmp2Dct = {}
+                for word in theFinalMsgList:    # check for the same word too many times (5 is good i guess)
+                    if word in tmpDct:
+                        tmpDct[word] += 1
+                    else:
+                        tmpDct[word] = 1
+                    if tmpDct[word] >= 5:
+                        return
+                for i in range(len(theFinalMsgList)-1):   # check for repeated duet of words (5 is good)
+                    if theFinalMsgList[i] == theFinalMsgList[i+1]:
+                        couplet = theFinalMsgList[i].lower() + " " + theFinalMsgList[i+1].lower()
+                        if couplet in tmp2Dct:
+                            tmp2Dct[couplet] += 1
+                        else:
+                            tmp2Dct[couplet] = 1
+                        if tmp2Dct[couplet] >= 5:
+                            return
+
+
+                pindex = 0
+                tindex = 2
+                while tindex < len(theFinalMsgList):
+                    key = " ".join(theFinalMsgList[pindex:pindex+2])
+                    val = theFinalMsgList[tindex]
+                    BarryBot.BarTalk_sessions[message.guild.id].collect(key, val)
+                    pindex += 1
+                    tindex += 1
+    except:
+        traceback.print_exc()
 
 # @bot.event
 # async def on_error(event, *args, **kwargs):
@@ -190,6 +269,7 @@ async def on_command(ctx):
 @bot.event
 async def on_guild_join(guild):
     # todo this is broken because guild.create_invite is dead
+    BarryBot.createSingleBarTalkSession(guild.id)
     try:
         newInvite = await guild.create_invite()
         finalStr = "Invite: "+str(newInvite)
@@ -202,6 +282,7 @@ async def on_guild_join(guild):
     if guild.id not in BarryBot.settings:
         BarryBot.settings[guild.id] = ServerSettings(guild.id, BarryBot.config)
     await BarryBot.logchan.send("I have joined a new server called "+guild.name+". ID: "+str(guild.id)+" "+finalStr)
+
 @bot.event
 async def on_guild_remove(guild):
     await BarryBot.logchan.send("A server I was in called '"+guild.name+"' disappeared. Maybe I got kicked? ID: "+str(guild.id))
@@ -224,7 +305,12 @@ async def on_guild_channel_update(before, after):
                 changes += 1
             if isinstance(before, discord.TextChannel):
                 if before.topic != after.topic:
-                    e.add_field(name="Topic Changed", value="From: '"+before.topic+"' to '"+after.topic+"'")
+                    if before.topic is None:
+                        e.add_field(name="Topic Set", value="To '"+after.topic+"'")
+                    elif after.topic is None:
+                        e.add_field(name="Topic Removed", value="From '"+before.topic+"'")
+                    else:
+                        e.add_field(name="Topic Changed", value="From: '"+before.topic+"' to '"+after.topic+"'")
                     changes += 1
             if isinstance(before, discord.VoiceChannel):
                 if before.bitrate != after.bitrate:
@@ -307,7 +393,7 @@ async def on_member_join(member):
             foundchan = discord.utils.get(member.guild.text_channels, id=int(BarryBot.settings[member.guild.id].features["defaultchannel_ID"]))
             await foundchan.send(content=member.mention+"\n"+BarryBot.settings[member.guild.id].features["welcome_Message"])
         if BarryBot.settings[member.guild.id].features["defaultrole_Enabled"] == "1":
-            role = discord.utils.get(member.guild.roles, id=int(settings.features["defaultrole_ID"]))
+            role = discord.utils.get(member.guild.roles, id=int(BarryBot.settings[member.guild.id].features["defaultrole_ID"]))
             await member.add_roles(role)
     except:
         print("Error in member join event for guild "+str(member.guild.id))
@@ -327,6 +413,7 @@ async def on_member_remove(member):
             e.add_field(name="Member ID", value=str(member.id))
             e.add_field(name="Bot Member?", value=str(member.bot))
             e.add_field(name="Member Account Creation", value=str(member.created_at))
+            e.add_field(name="Roles", value=", ".join([role.name for role in member.roles]))
             foundchan = discord.utils.get(member.guild.text_channels,
                                           id=int(settings.features["logchan_ID"]))
             await foundchan.send(embed=e)
@@ -347,6 +434,7 @@ async def on_member_ban(guild, user):
             e.add_field(name="User ID", value=str(user.id))
             e.add_field(name="Bot User?", value=str(user.bot))
             e.add_field(name="User Account Creation", value=str(user.created_at))
+            e.add_field(name="Roles", value=", ".join([role.name for role in member.roles]))
             foundchan = discord.utils.get(guild.text_channels,
                                           id=int(settings.features["logchan_ID"]))
             await foundchan.send(embed=e)
@@ -435,6 +523,32 @@ async def on_member_update(before, after):
                 foundchan = discord.utils.get(after.guild.text_channels,
                                               id=int(settings.features["logchan_ID"]))
                 await foundchan.send(embed=e)
+        try:
+            if before.activity != after.activity:
+                if settings.features["stream_Enabled"] == "1" and settings.validateIDType(settings.features["stream_channel_ID"], before.guild, 'text'):
+                    if before.activity is None or before.activity.type != discord.ActivityType.streaming:
+                        if after.activity is not None and after.activity.type == discord.ActivityType.streaming:
+                            foundchan = discord.utils.get(after.guild.text_channels, id=int(settings.features["stream_channel_ID"]))
+                            # todo add sub mention here
+                            e = discord.Embed(description=after.mention, color=discord.Color.dark_purple())
+                            e.set_author(name="Stream Active:")
+                            e.set_footer(text="Stream Activity Spotted! Disable this with the 'feature' command.", icon_url=BarryBot.bot.user.avatar_url)
+                            e.set_thumbnail(url=after.avatar_url)
+                            e.add_field(name="Stream Name", value=after.activity.name)
+                            if after.activity.url:
+                                e.add_field(name="Stream URL", value=after.activity.url)
+                            if after.activity.details:
+                                e.add_field(name="Stream Game", value=after.activity.details)
+                            if after.activity.twitch_name:
+                                e.add_field(name="Twitch Name", value=after.activity.twitch_name)
+                            BarryBot.streamMessages[after.id] = await foundchan.send(embed=e)
+                    if before.activity is not None and before.activity.type == discord.ActivityType.streaming:
+                        if after.activity is None or after.activity.type != discord.ActivityType.streaming:
+                            await BarryBot.streamMessages[after.id].delete()
+                            del BarryBot.streamMessages[after.id]
+        except:
+            traceback.print_exc()
+
     except:
         print("Error in member nick/role change event for guild "+str(before.guild.id))
         traceback.print_exc()
@@ -581,17 +695,74 @@ async def on_guild_role_update(before, after):
 async def on_message_edit(before, after):
     ''' pertains to log_edits'''
     try:
-        pass
+        if before.content != after.content and not before.author.bot:
+            if BarryBot.settings[before.guild.id].features["log_edits_Enabled"] == "1" and BarryBot.settings[before.guild.id].features["logging_Enabled"] == "1":
+                firstStr = before.content
+                secondStr = after.content
+                if len(firstStr) + len(secondStr) > 1900:
+                    e = discord.Embed(description="By "+before.author.mention+" in "+before.channel.mention+"\n**Before Edit**:\n"+firstStr, color=discord.Color.magenta(), timestamp=before.created_at)
+                    e2 = discord.Embed(description="By "+before.author.mention+" in "+before.channel.mention+"\n**After Edit**:\n"+secondStr, color=discord.Color.magenta(), timestamp=after.edited_at)
+                    e.set_author(name="Message Edited (Split into 2 Alerts - Message ID "+str(before.id)+")", url=after.jump_url)
+                    e2.set_author(name="Message Edited (Split into 2 Alerts - Message ID "+str(after.id)+")", url=after.jump_url)
+                    if len(before.attachments) > 0:
+                        e.add_field(name="Attachments", value=str(len(before.attachments)) + " attachments")
+                        e2.add_field(name="Attachments", value=str(len(after.attachments)) + " attachments")
+                    e.set_footer(text="Message Edit Spotted! Disable this with the 'feature' command.", icon_url=BarryBot.bot.user.avatar_url)
+                    e2.set_footer(text="Message Edit Spotted! Disable this with the 'feature' command.", icon_url=BarryBot.bot.user.avatar_url)
+                    foundchan = discord.utils.get(before.guild.text_channels, id=int(BarryBot.settings[before.guild.id].features["logchan_ID"]))
+                    await foundchan.send(embed=e)
+                    await foundchan.send(embed=e2)
+                    return
+                e = discord.Embed(description="By "+before.author.mention+" in "+before.channel.mention+"\n**Before Edit**:\n\n"+firstStr+"\n\n**After Edit**:\n\n"+secondStr, color=discord.Color.dark_magenta(), timestamp=after.edited_at)
+                e.set_author(name="Message Edited (Single Alert - Message ID "+str(after.id)+")", url=after.jump_url)
+                if len(before.attachments) > 0:
+                    e.add_field(name="Attachments", value="\n".join([x.url for x in after.attachments]))
+                    try:
+                        e.set_thumbnail(url=after.attachments[0].url)
+                    except:
+                        traceback.print_exc()
+                e.set_footer(text="Message Edit Spotted! Disable this with the 'feature' command.", icon_url=BarryBot.bot.user.avatar_url)
+                foundchan = discord.utils.get(before.guild.text_channels, id=int(BarryBot.settings[before.guild.id].features["logchan_ID"]))
+                await foundchan.send(embed=e)
+
+
+
+        # section reserved for pin catching
+
+
+
     except:
-        pass
+        print("Error in message edit event for guild "+str(before.guild.id))
+        traceback.print_exc()
 
 @bot.event
 async def on_message_delete(message):
     ''' pertains to log_deletes'''
-    try:
+    if message.type == discord.MessageType.pins_add:
         pass
-    except:
-        pass
+    else:
+        try:
+            if not message.author.bot:
+                if BarryBot.settings[message.guild.id].features["log_deletes_Enabled"] == "1" and BarryBot.settings[message.guild.id].features["logging_Enabled"] == "1":
+                    for prefix in BarryBot.settings[message.guild.id].features["log_deletes_Ignores"].split():
+                        if message.content.lower().startswith(prefix.lower()):
+                            return
+                    e = discord.Embed(description="By "+message.author.mention+" in "+message.channel.mention+"\n**Contents**:\n\n"+message.content, color=discord.Color.dark_magenta(), timestamp=message.created_at)
+                    e.set_author(name="Message Deleted (Message ID "+str(message.id)+")", url=message.jump_url)
+                    e.set_footer(text="Message Delete Spotted! Disable this with the 'feature' command.", icon_url=BarryBot.bot.user.avatar_url)
+                    if len(message.attachments) > 0:
+                        e.add_field(name="Attachments", value="\n".join([x.url for x in message.attachments]))
+                        try:
+                            e.set_thumbnail(url=message.attachments[0].url)
+                        except:
+                            traceback.print_exc()
+                    if len(message.embeds) > 0:
+                        e.add_field(name="Fields", value=str(len(message.embeds))+" embed(s) present")
+                    foundchan = discord.utils.get(message.guild.text_channels, id=int(BarryBot.settings[message.guild.id].features["logchan_ID"]))
+                    await foundchan.send(embed=e)
+        except:
+            print("Error in message delete event for guild "+str(message.guild.id))
+            traceback.print_exc()
 
     
 
