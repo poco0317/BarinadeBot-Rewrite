@@ -254,6 +254,7 @@ class Settings:
         # ifs to check what the reply was, what to do... etc
         setting = self.BarryBot.settings[ctx.guild.id]
         list_of_feature_names = {"playerleave", "playervol", "defaultchannel", "defaultrole", "welcome", "wotd", "quotesfrompins", "ignoredchans", "nocommandchans", "nologchans", "logging", "modchan", "logchan", "filteredwords", "capsspam", "bar", "filterlinks", "sublists", "colors", "rpg", "stream"}
+        setting.sanity_check(ctx.guild)
 
         # unfortunately we are also about to do something you never want to see ever
         # there isn't much of a better way to do it that i can tell without making every single feature an object
@@ -1563,13 +1564,51 @@ class ServerSettings:
                 self.config.write(file)
         return changes_made
 
-    def sanity_check(self):
+    def sanity_check(self, guild):
         '''Check all specific settings which reference IDs to make sure they still point to something and also to make sure all settings which should be IDs are IDs'''
-        pass
+        self.sanity_check_individual("Features", "defaultchannel_ID", guild)
+        self.sanity_check_individual("Features", "defaultrole_ID", guild)
+        self.sanity_check_individual("Features", "quotesfrompins_Ignored_IDs", guild)
+        self.sanity_check_individual("Features", "ignoredchans_IDs", guild)
+        self.sanity_check_individual("Features", "nocommandchans_IDs", guild)
+        self.sanity_check_individual("Features", "nologgingchans_IDs", guild)
+        self.sanity_check_individual("Features", "modchan_ID", guild)
+        self.sanity_check_individual("Features", "logchan_ID", guild)
+        self.sanity_check_individual("Features", "bar_listenchan_IDs", guild)
+        self.sanity_check_individual("Features", "bar_ignoreuser_IDs", guild)
+        self.sanity_check_individual("Features", "sublists_IDs", guild)
+        self.sanity_check_individual("Features", "colors_IDs", guild)
+        self.sanity_check_individual("Features", "rpg_channel_ID", guild)
+        self.sanity_check_individual("Features", "stream_channel_ID", guild)
+
+    def sanity_check_individual(self, section, name, guild):
+        '''Check an individual setting, even if it is a list, for IDs that don't work'''
+        try:
+            if self.config[section][name] == "0":
+                return
+            potential_list = self.config[section][name].split()
+            length = len(potential_list)
+            for id in potential_list:
+                if self.isNone(id, guild):
+                    if length > 1:
+                        self.remove(section, name, id)
+                    else:
+                        self.modify(section, name, "0")
+        except:
+            # oof
+            pass
+
+    def isNone(self, givenID, guild):
+        '''Check to see if a given ID returns a none type
+        returns true if the ID returns all None'''
+        ischannel = guild.get_channel(int(givenID))
+        isuser = guild.get_member(int(givenID))
+        isrole = guild.get_role(int(givenID))
+        return ischannel is None and isuser is None and isrole is None
 
     def validateID(self, chanID, guild):
         '''Check a given channel ID in a server to see if it is legitimate'''
-        return chanID in [chan.id for chan in guild.channels]
+        return int(chanID) in [chan.id for chan in guild.channels]
 
     def validateIDType(self, chanID, guild, chantype):
         '''Check a given channel ID in a server against a type'''

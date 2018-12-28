@@ -175,6 +175,7 @@ class Barry(discord.Client):
                 return await ctx.send("Color Roles are not enabled on your server. Ask an Admin about it.", delete_after=15)
             if len(setting.features["colors_IDs"].split()) == 0:
                 return await ctx.send("Color Roles are enabled but there are no roles set. Ask an Admin about it.", delete_after=15)
+            setting.sanity_check_individual("Features", "sublists_IDs", ctx.guild)
             if colorStr == "give me the list":
                 p = GenericPaginator(self, ctx, markdown="css")
                 for x in setting.features["colors_IDs"].split():
@@ -225,6 +226,7 @@ class Barry(discord.Client):
             return await ctx.send("Subscribing is not enabled on your server. Ask an Admin about it.", delete_after=15)
         if len(setting.features["sublists_IDs"].split()) == 0:
             return await ctx.send("Subscribing is enabled but there are no roles set. Ask an Admin about it.", delete_after=15)
+        setting.sanity_check_individual("Features", "sublists_IDs", ctx.guild)
         if subStr == "give me the list":
             p = GenericPaginator(self, ctx, page_header='List Name  |  Subscribed (Yes/No)', markdown="css")
             user_roles = {str(x.id):x for x in ctx.author.roles}
