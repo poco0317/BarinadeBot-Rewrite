@@ -178,8 +178,11 @@ class Barry(discord.Client):
             setting.sanity_check_individual("Features", "sublists_IDs", ctx.guild)
             if colorStr == "give me the list":
                 p = GenericPaginator(self, ctx, markdown="css")
+                str_arr = []
                 for x in setting.features["colors_IDs"].split():
-                    p.add_line(line=str(discord.utils.get(ctx.guild.roles, id=int(x))))
+                    str_arr.append(str(discord.utils.get(ctx.guild.roles, id=int(x))))
+                for thing in sorted(str_arr):
+                    p.add_line(line=thing)
                 msg = await ctx.send("Here is a list of all colors on the server. Pick one using !color [colorname].\n"+str(p))
                 p.msg = msg
                 p.original_msg = "Here is a list of all colors on the server. Pick one using !color [colorname].\n"
@@ -230,8 +233,11 @@ class Barry(discord.Client):
         if subStr == "give me the list":
             p = GenericPaginator(self, ctx, page_header='List Name  |  Subscribed (Yes/No)', markdown="css")
             user_roles = {str(x.id):x for x in ctx.author.roles}
+            str_arr = []
             for x in setting.features["sublists_IDs"].split():
-                p.add_line(line=str(discord.utils.get(ctx.guild.roles, id=int(x)))+"  -  "+("Yes" if x in user_roles else "No"))
+                str_arr.append(str(discord.utils.get(ctx.guild.roles, id=int(x)))+"  -  "+("Yes" if x in user_roles else "No"))
+            for thing in sorted(str_arr):
+                p.add_line(line=thing)
             msg = await ctx.send("Here is a list of all sublists on the server. Pick any by using !sub [rolename].\n"+str(p))
             p.msg = msg
             p.original_msg = "Here is a list of all sublists on the server. Pick any by using !sub [rolename].\n"
