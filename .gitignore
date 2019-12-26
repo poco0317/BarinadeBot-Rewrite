@@ -104,3 +104,7 @@ bot-env/
 .mypy_cache/
 config/config.ini
 config/settings/
+
+graphs/
+
+rpg/
