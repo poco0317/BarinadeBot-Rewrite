@@ -59,7 +59,7 @@ class BarTalk:
         ''' load an existing brain from text
         syntax: !command "path"'''
         try:
-            f = open(given[0], "r")
+            f = open(given[0], "r", encoding="utf-8")
             command = []
             for line in f:
                 info = line.split("=")

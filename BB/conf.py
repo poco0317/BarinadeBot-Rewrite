@@ -27,7 +27,7 @@ class Conf:
         self.stopwords = set()
         if self.stopwords_path != "":
             try:
-                f = open(self.stopwords_path, "r")
+                f = open(self.stopwords_path, "r", encoding="utf-8")
                 for line in f:
                     self.stopwords.add(line.strip())
                 f.close()

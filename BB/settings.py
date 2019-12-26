@@ -228,7 +228,7 @@ class Settings:
         else:
             setting.add("Aliases", checkName, msgW)
             await ctx.send("I have added "+msgW+" as an alias to "+checkName, delete_after=15)
-        with open(setting.config_filepath, "w") as file:
+        with open(setting.config_filepath, "w", encoding="utf-8") as file:
             setting.config.write(file)
         self.BarryBot.settings[ctx.guild.id] = setting
         await msg.delete()
@@ -1429,7 +1429,7 @@ class Settings:
         serversettings.aliases = defaults["Aliases"]
         serversettings.roles = defaults["Role Levels"]
 
-        with open(serversettings.config_filepath, "w") as file:
+        with open(serversettings.config_filepath, "w", encoding="utf-8") as file:
             serversettings.config.write(file)
         self.BarryBot.settings[ctx.guild.id] = serversettings
         await ctx.send("All server settings have been reset to default.", delete_after=15)
@@ -1560,7 +1560,7 @@ class ServerSettings:
                     changes_made += 1
 
 
-        with open(self.config_filepath, "w") as file:
+        with open(self.config_filepath, "w", encoding="utf-8") as file:
                 self.config.write(file)
         return changes_made
 
@@ -1681,7 +1681,7 @@ class ServerSettings:
         Returns false if an error occurs'''
         try:
             self.config[section][name] = value
-            with open(self.config_filepath, "w") as file:
+            with open(self.config_filepath, "w", encoding="utf-8") as file:
                 self.config.write(file)
             return True
         except:
@@ -1695,20 +1695,20 @@ class ServerSettings:
             try:
                 if len(self.config[section][name].split()) == 1:
                     del self.config[section][name]
-                    with open(self.config_filepath, "w") as file:
+                    with open(self.config_filepath, "w", encoding="utf-8") as file:
                         self.config.write(file)
                     return True
                 tmpSet = set(self.config[section][name].split())
                 tmpSet.remove(value)
                 self.config[section][name] = " ".join(tmpSet)
-                with open(self.config_filepath, "w") as file:
+                with open(self.config_filepath, "w", encoding="utf-8") as file:
                     self.config.write(file)
                 return True
             except:
                 return False
         try:
             del self.config[section][name]
-            with open(self.config_filepath, "w") as file:
+            with open(self.config_filepath, "w", encoding="utf-8") as file:
                 self.config.write(file)
             return True
         except:
@@ -1731,7 +1731,7 @@ class ServerSettings:
                     valuelist.remove(x)
                 value = " ".join(valuelist)
             self.config[section][name] = value
-            with open(self.config_filepath, "w") as file:
+            with open(self.config_filepath, "w", encoding="utf-8") as file:
                 self.config.write(file)
             return True
         except:
@@ -1744,12 +1744,12 @@ class ServerSettings:
         try:
             if self.config[section][name] == '0':
                 self.config[section][name] = "1"
-                with open(self.config_filepath, "w") as file:
+                with open(self.config_filepath, "w", encoding="utf-8") as file:
                     self.config.write(file)
                 return 1
             elif self.config[section][name] == "1":
                 self.config[section][name] = "0"
-                with open(self.config_filepath, "w") as file:
+                with open(self.config_filepath, "w", encoding="utf-8") as file:
                     self.config.write(file)
                 return 0
             return None

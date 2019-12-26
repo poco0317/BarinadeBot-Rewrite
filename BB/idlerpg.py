@@ -38,14 +38,14 @@ class RPGSession:
 
     def _load_file(self, dir, option="r", ext="save"):
         try:
-            the_file = open(dir, option)
+            the_file = open(dir, option, encoding="utf-8")
             return the_file
         except:
             try:
                 print("Created RPG data from default file.")
                 print("It should exist here: " + dir)
                 shutil.copy(os.path.dirname(self.save_filepath)+"/example_"+ext+"."+ext, self.save_filepath)
-                the_file = open(dir, option)
+                the_file = open(dir, option, encoding="utf-8")
                 return the_file
             except:
                 print("Well... Somehow the default is gone too. Good luck.")
