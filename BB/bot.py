@@ -146,7 +146,7 @@ class Barry(discord.Client):
                 result = Decimal(g) * result
             except:
                 pass
-        await ctx.send("Heres the answer lmao: "+str(result))
+        await ctx.send("Heres the answer: "+str(result))
 
 
     @commands.command(hidden=True)
