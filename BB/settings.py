@@ -1028,7 +1028,10 @@ class Settings:
                 if msg.content.lower() == "t":
                     setting.toggle("Features", "sublists_Enabled")
                     return await ctx.send("Subscription Lists have been toggled to "+setting.num_to_bool("Features", "sublists_Enabled"), delete_after=15)
-                sub_roles = [str(discord.utils.get(ctx.guild.roles, id=int(x)).id) for x in setting.features["sublists_IDs"].split()]
+                if len(setting.features["sublists_IDs"].split()) == 1 and setting.features["sublists_IDs"].split()[0] == "0":
+                    sub_roles = []
+                else:
+                    sub_roles = [str(ctx.guild.get_role(int(x)).id) for x in setting.features["sublists_IDs"].split()]
                 try:
                     foundrole = await commands.RoleConverter().convert(await self.bot.get_context(msg), msg.content)
                 except:
@@ -1048,7 +1051,11 @@ class Settings:
                 if msg.content.lower() == "t":
                     setting.toggle("Features", "colors_Enabled")
                     return await ctx.send("Color Roles has been toggled to "+setting.num_to_bool("Features", "colors_Enabled"), delete_after=15)
-                color_roles = [str(discord.utils.get(ctx.guild.roles, id=int(x)).id) for x in setting.features["colors_IDs"].split()]
+                if len(setting.features["colors_IDs"].split()) == 1 and setting.features["colors_IDs"].split()[0] == "0":
+                    color_roles = []
+                else:
+                    color_roles = [str(discord.utils.get(ctx.guild.roles, id=int(x)).id) for x in
+                                   setting.features["colors_IDs"].split()]
                 try:
                     foundrole = await commands.RoleConverter().convert(await self.bot.get_context(msg), msg.content)
                 except:
@@ -1595,7 +1602,7 @@ class ServerSettings:
                     else:
                         self.modify(section, name, "0")
         except:
-            # oof
+            traceback.print_exc()
             pass
 
     def isNone(self, givenID, guild):
