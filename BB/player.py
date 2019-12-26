@@ -1,4 +1,4 @@
-import os, errno
+import os, errno, glob
 import discord
 import asyncio
 from discord.ext import commands
@@ -48,7 +48,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
     def __init__(self, bot, config, loop, mainbot):
         self.bot = bot #commands related for making this all disorganized
         self.config = config
-        self.loop = loop 
+        self.loop = loop
         self.BarryBot = mainbot #contains the Downloader and mainly everything
         self.players = {} #format: self.players[serverID] = (channelplayer, playlist); playlist contains message/chan/vc/self etc
         try:
@@ -87,7 +87,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
             self.players[ctx.guild.id] = (player, Playlist(self.BarryBot, ctx.channel, None, ctx.author.voice.channel, self, ctx))
             return
         self.players[ctx.guild.id] = (player, Playlist(self.BarryBot, ctx.channel, None, ctx.author.voice.channel, self, ctx))
-        
+
     @commands.command(aliases=["kys", "leave"])
     @commands.check(Perms.is_guild_mod)
     async def disconnect(self, ctx):
@@ -98,7 +98,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
         player = self.players[ctx.guild.id][0]
         await player.disconnect()
         del self.players[ctx.guild.id]
-        
+
     @commands.command()
     async def play(self, ctx, *, url : str):
         '''Queue an item on the music player
@@ -116,7 +116,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
                 raise noChannel
             else:
                 pass
-        
+
         if ctx.guild.id not in self.players and ctx.author.voice:
             await self.summon.invoke(ctx)
         elif ctx.guild.id not in self.players and not ctx.author.voice:
@@ -135,7 +135,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
                         else:
                             await self.summon.invoke(ctx)
                     #basically this is a bunch of bypasses and permission checking    
-                    
+
         change_later = await ctx.send("Looking...")
         try:
             info = await self.BarryBot.downloader.get_the_stuff(self.players[ctx.guild.id][1].loop, url, download=False, process=False)
@@ -176,7 +176,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
             if info.get('duration',0) > 10800:
                 await change_later.delete()
                 raise songTooLong
-            
+
             try:
                 entry, position = await self.players[ctx.guild.id][1].add_entry(url, queuer=ctx.author, bass=bassboost)
             except:
@@ -218,7 +218,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
             if position == 2:
                 await self.players[ctx.guild.id][1].entries[1].download()
         #await ctx.send(sendMessage, delete_after=30)
-    
+
     @commands.command(aliases=["vol"])
     async def volume(self, ctx, *, vol : float = 0.050305):
         '''Change the music player volume
@@ -243,7 +243,7 @@ class Player: #this represents commands and not an actual player/voicechan objec
             self.players[ctx.guild.id][0].source.volume = vol
         self.players[ctx.guild.id][1].volume = vol
         await ctx.send("The volume has been changed to "+str(vol*100)+"%.", delete_after=15)
-    
+
     @commands.command(aliases=["queue", "que", "list"])
     async def playlist(self, ctx):
         '''Show the playlist'''
@@ -294,13 +294,13 @@ class Player: #this represents commands and not an actual player/voicechan objec
                 pass
             else:
                 raise noChannel
-            
+
         if len(self.players[ctx.guild.id][1].entries) == 0:
             return await ctx.send("There are no entries in the playlist!", delete_after=15)
-        
+
         self.players[ctx.guild.id][1].shuffle()
         await ctx.send("The playlist has been shuffled.", delete_after=15)
-        
+
     @commands.command(aliases=["listpurge"])
     @commands.check(Perms.is_guild_mod)
     async def clear(self, ctx):
@@ -313,8 +313,8 @@ class Player: #this represents commands and not an actual player/voicechan objec
         songs = len(self.players[ctx.guild.id][1].entries)
         self.players[ctx.guild.id][1].clear()
         return await ctx.send("I have removed "+str(songs)+" songs from the queue.", delete_after=20)
-        
-        
+
+
     @commands.command()
     async def skip(self, ctx, *, pos : int = 1):
         '''Skip the current entry or the entry at the given position
@@ -399,15 +399,15 @@ class Player: #this represents commands and not an actual player/voicechan objec
 
 
 
-        
+
     @commands.command(hidden=True)
     @commands.check(Perms.is_owner)
     async def download(self, ctx):
         ''' download the first entry
         Testing only'''
-        
+
         await self.players[ctx.guild.id][1].entries[0].download()
-        
+
     @commands.command(hidden=True)
     @commands.check(Perms.is_owner)
     async def forceplay(self, ctx):
@@ -417,6 +417,111 @@ class Player: #this represents commands and not an actual player/voicechan objec
             await self.players[ctx.guild.id][1].entries[0].play(self.players[ctx.guild.id][0])
         except:
             traceback.print_exc()
+
+    def recursivelyGetAudioFiles(self, dir):
+        ''' get the files in a directory
+        at this point, dir should be something like:
+        C:/audiodirectory/
+        '''
+        output = []
+        folders = []
+        try:
+            folders = [x for x in os.scandir(dir) if not x.is_file()]
+        except:
+            folders = []
+        types = ("*.wav", "*.mp3", "*.flac", "*.ogg", "*.mp4", "*.mov", "*.m4v")
+        for type in types:
+            try:
+                output.extend(glob.glob(os.path.join(dir, type)))
+            except:
+                pass
+        for folder in folders:
+            path = os.path.splitext(folder)[0]
+            output.extend(self.recursivelyGetAudioFiles(path + "/"))
+        return output
+
+    @commands.command(hidden=True, aliases=["dir2play"])
+    @commands.check(Perms.is_owner)
+    async def recursiveplay(self, ctx, *, directory:str):
+        ''' queue an entire directory of songs recursively.
+        also works with -b'''
+
+        try:
+            # dont need to check for vc unless the command is open to all
+            if ctx.guild.id not in self.players and ctx.author.voice:
+                await self.summon.invoke(ctx)
+            else:
+                if ctx.author.voice:
+                    if ctx.author.voice.channel.id != self.players[ctx.guild.id][
+                        1].voice_channel.id and ctx.author.voice.channel.id != players[ctx.guild.id][0].channel.id:
+                        if not (self.players[ctx.guild.id][0].is_playing()):
+                            await self.summon.invoke(ctx)
+            change_later = await ctx.send("Getting recursive listing...")
+            try:
+                self.players[ctx.guild.id][1].waitingTask.cancel()
+            except:
+                pass
+            bassboost = False
+            if directory.split()[0].lower() == "-b":
+                if len(directory.split()) == 1:
+                    await change_later.delete()
+                    raise specific_error("You can't bass boost nothing.")
+                bassboost = True
+                directory = " ".join(directory.split()[1:])
+            if directory[-1] != "/":
+                directory += "/"
+            entries = self.recursivelyGetAudioFiles(directory)
+
+
+            position = 1
+            count = 0
+            entry = None
+            title = ""
+            try:
+                for song in entries:
+                    title = re.search(r"([^\\/]*$)", song).group(0)
+                    entry, position = await self.players[ctx.guild.id][1].add_entry(queuer=ctx.author, bass=bassboost,
+                                                                                    forced_info={"title": title, "filepath": song})
+                    count += 1
+            except:
+                traceback.print_exc()
+                await change_later.delete()
+                raise entryFailure
+
+            position -= len(entries) - 1
+
+            sendMessage = "Found and queued **%s** songs starting at position %s in the queue"
+
+            self.players[ctx.guild.id][1].chan = ctx.channel
+            if position == 1 and not self.players[ctx.guild.id][0].is_playing():
+                sendMessage = "Found and queued **%s** songs to play as soon as possible!"
+                sendMessage %= count
+                await change_later.edit(content=sendMessage)
+                await self.BarryBot.delete_later(change_later, 30)
+                self.players[ctx.guild.id][1].temp_message = change_later
+                cur_entr = self.players[ctx.guild.id][1].current_entry()
+                await self.players[ctx.guild.id][1].entries[0].download()
+                if cur_entr.skipped:
+                    return
+                self.players[ctx.guild.id][1].message = await self.players[ctx.guild.id][1].chan.send(
+                    "Now playing in " + self.players[ctx.guild.id][0].channel.name + ": " + str(
+                        self.players[ctx.guild.id][1].entries[0]))
+                await self.players[ctx.guild.id][1].entries[0].play(self.players[ctx.guild.id][0])
+            else:
+                try:
+                    time_to = await self.players[ctx.guild.id][1].time_to(position)
+                    sendMessage += " - Rough estimation for when it will play: %s"
+                except:
+                    time_to = "Error"
+                try:
+                    sendMessage %= (count, position, time_to)
+                except:
+                    sendMessage = "There was an error creating the final string, but " + count + " songs should have been queued anyways."
+                await change_later.edit(content=sendMessage)
+                await self.BarryBot.delete_later(change_later, 30)
+        except:
+            traceback.print_exc()
+
 
     @commands.command(hidden=True, aliases=["dirplay"])
     @commands.check(Perms.is_owner)
