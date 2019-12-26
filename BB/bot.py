@@ -266,6 +266,31 @@ class Barry(discord.Client):
         except:
             traceback.print_exc()
 
+    @commands.command(aliases=["subbers"], usage="[sublist]")
+    async def listsubs(self, ctx, *, subStr):
+        ''' Grab a list of members of a role
+        This works on any role, but it is meant to be used on sublist roles.'''
+        list_of_roles = {x.name:x for x in ctx.guild.roles}
+        try:
+            if subStr in list_of_roles:
+                p = GenericPaginator(self, ctx, markdown="css")
+                users = {x.name for x in ctx.guild.members if list_of_roles[subStr] in [r for r in x.roles]}
+                if len(users) == 0:
+                    return await ctx.send("It seems there are no members of that role.", delete_after=15)
+                for x in sorted(users):
+                    p.add_line(line=x)
+                msg = await ctx.send("Here is a list of all members of the role '"+subStr+"'\n"+str(p))
+                p.msg = msg
+                p.original_msg = "Here is a list of all members of the role '"+subStr+"'\n"
+                await p.add_reactions()
+                await p.start_waiting()
+                return
+            else:
+                return await ctx.send("That does not seem to be a role in this server.", delete_after=15)
+        except:
+            traceback.print_exc()
+
+
 
 
 
