@@ -4,6 +4,8 @@ import asyncio
 import traceback
 from discord.ext import commands
 
+import uuid
+
 class EmbedFooter: #for picking a funny embed footer message
     def __init__(self):
         self.message = self.setRandom()
@@ -14,6 +16,88 @@ class EmbedFooter: #for picking a funny embed footer message
     def setRandom(self):
         lest = {"Produced with precision", "You ever just put butter on saltine crackers?", "Look at me now", "Filled with love", "Made with love", "Produced with no care", "Produced by the producer", "Produced carefully", "Created by hand", "Created by the hand of God", "Baked to perfection", "Created carefully", "Carelessly made", "Organically produced", "Molded by Picasso himself", "I'm not an artist", "Don't judge", "Dali would have been proud", "Look at my doge face", "how did this get here", "Over 3 man-seconds were spent creating this", "oh god i am not good with computer", "Carefully constructed by an artist", "This was easier than it sounds", "hi"}
         return random.sample(lest, 1)[0]
+
+class ReactionMessage:
+    '''
+    This is a message with a list of reactions and a set of functions that take place
+    depending on which reaction is pressed.
+    The message is periodically checked to see if the reactions are broken or need to be removed.
+    '''
+    def __init__(self, msg, bot, uuid = uuid.uuid4()):
+        self.uniqueID = str(uuid)
+        self.message = msg
+        self.content = "Placeholder Text"
+        self.reactiondict = {} # Keys are unicode strings, values are functions
+        self.bot = bot.bot
+        self.loop = bot.bot.loop
+        self.BarryBot = bot
+
+    def initialize(self):
+        '''Run other initialization things required for this to function'''
+        self.loop.create_task(self.startWaiting())
+        self.loop.create_task(self.setMessage())
+        self.loop.create_task(self.addReactions())
+
+    def setEvent(self, reaction, function):
+        '''Set a reaction in the dictionary and assign a function'''
+        self.reactiondict[reaction] = function
+
+    def delEvent(self, reaction):
+        '''Delete a reaction from the dictionary'''
+        del self.reactiondict[reaction]
+
+    def setContent(self, content):
+        '''Set the content'''
+        self.content = content
+
+    async def addReactions(self):
+        '''Place the initial reactions'''
+        for key in self.reactiondict.keys():
+            await self.message.add_reaction(key)
+
+    async def startWaiting(self):
+        '''Begin the waiting game'''
+        self.loop.create_task(self._reallyWait())
+
+    async def _reallyWait(self):
+        '''This actually does the work for waiting'''
+        def check(moji, user):
+            return moji.message.id == self.message.id and moji.emoji in self.reactiondict.keys() and not user.bot
+        try:
+            reaction, user = await self.bot.wait_for("reaction_add", check=check)
+        except:
+            print("Something broke really bad.")
+            traceback.print_exc()
+            return
+        await self.message.remove_reaction(reaction.emoji, user)
+        try:
+            await self.handleReaction(reaction.emoji, user)
+        except:
+            traceback.print_exc()
+
+        self.loop.create_task(self._reallyWait())
+
+    async def handleReaction(self, reaction, user):
+        '''Do the work involving functions for each reaction'''
+        await self.reactiondict[reaction](user)
+
+    async def setMessage(self):
+        '''Set up the message'''
+        await self.message.edit(content=self.content)
+
+class SubMessage(ReactionMessage):
+    '''
+    This is a ReactionMessage that is built for sublists.
+    '''
+    def __init__(self, msg, bot, uuid = uuid.uuid4()):
+        super().__init__(msg, bot, uuid)
+
+class ColorMessage(ReactionMessage):
+    '''
+    This is a ReactionMessage that is built for colors.
+    '''
+    def __init__(self, msg, bot, uuid = uuid.uuid4()):
+        super().__init__(msg, bot, uuid)
 
 class GenericPaginator(commands.Paginator):
     '''
