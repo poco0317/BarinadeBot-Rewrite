@@ -41,6 +41,8 @@ ytdl_options = {
 }
 youtube_dl.utils.bug_reports_message = lambda: ''
 
+# needs to be manually filled in maybe if it fails
+# find the name of the opus library installed
 if not discord.opus.is_loaded():
     discord.opus.load_opus()
     
