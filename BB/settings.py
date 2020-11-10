@@ -10,7 +10,7 @@ from BB.misc import EmbedFooter, GenericPaginator
 import configparser
 import shutil
 
-class Settings:
+class Settings(commands.Cog):
     # these are per-server settings 
     # things like whether or not they want per channel command monitoring or whatever
     # this is the class which controls the commands

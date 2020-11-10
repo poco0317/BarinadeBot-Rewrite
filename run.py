@@ -46,8 +46,8 @@ async def on_ready():
         BarryBot.settings[guild.id] = ServerSettings(guild.id, BarryBot.config)
         BarryBot.settings[guild.id].verify()
     try:
-        BarryBot.loop.create_task(BarryBot.check_looper_fast())
-        BarryBot.loop.create_task(BarryBot.check_looper_slow())
+        #BarryBot.loop.create_task(BarryBot.check_looper_fast())
+        #BarryBot.loop.create_task(BarryBot.check_looper_slow())
         BarryBot.loop.create_task(BarryBot.createBarTalkSessions())
     except:
         traceback.print_exc()

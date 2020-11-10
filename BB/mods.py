@@ -9,7 +9,7 @@ from BB.permissions import *
 from BB.misc import EmbedFooter, GenericPaginator
 
 
-class Moderation:
+class Moderation(commands.Cog):
         #for things like linkblock or whatever
         #or maybe role specific muting
 

@@ -13,7 +13,7 @@ from discord.ext import commands
 from BB.misc import ChanOrMember
 
 
-class BarTalk:
+class BarTalk(commands.Cog):
 
     def __init__(self, bot, config, mainbot):
         self.bot = bot

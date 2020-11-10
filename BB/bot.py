@@ -34,15 +34,16 @@ class Barry(discord.Client):
 
         self.BarTalk_sessions = {}
         self.downloader = Downloader(self.config.download_path)
+        self.bot.add_cog(Shoop(self, self.config))
         self.bot.add_cog(MainCommands(self.bot, self.config)) #add the main command class for laziness sake
-        self.bot.add_cog(self) #also a cheaty way to just fit all the commands into this class
-        self.bot.add_cog(Uno(self.bot, self.config, self.loop, self))        
-        self.bot.add_cog(Player(self.bot, self.config, self.loop, self))
+        #self.bot.add_cog(self) #also a cheaty way to just fit all the commands into this class
+        #self.bot.add_cog(Uno(self.bot, self.config, self.loop, self))        
+        #self.bot.add_cog(Player(self.bot, self.config, self.loop, self))
         self.bot.add_cog(Settings(self.bot, self.config, self.loop, self))
         self.bot.add_cog(Moderation(self.bot, self.config, self.loop, self))
         #self.bot.add_cog(RPG(self.bot, self.config, self.loop, self))
         self.bot.add_cog(BarTalk(self.bot, self.config, self))
-        self.bot.add_cog(Reminders(self.bot, self.config, self.loop, self))
+        #self.bot.add_cog(Reminders(self.bot, self.config, self.loop, self))
 
         self.UnoGames = {}
         self.RPGSessions = {}
@@ -102,39 +103,17 @@ class Barry(discord.Client):
         self.BarTalk_sessions[guildID] = Brain(guild.id, self.config)
         print("I joined a new server. I have created a default BarTalk memory for it.")
 
-
-    @commands.command(hidden=True)
-    async def blacklistme(self, ctx):
-        self.blacklist.add(ctx.message.author.id)
-
-    @commands.command(hidden=True)
-    #@commands.check(Perms.is_owner)
-    async def respond(self, ctx, *, words):
-        '''Literally replies with exactly what you said'''
-        await ctx.send(words)
-        #await self.logchan.send(words)
+class Shoop(commands.Cog):
+    def __init__(self, orig, config):
+        self.bot = orig.bot
+        self.barry = orig
+        self.config = config
+        self.loop = orig.loop
 
     @commands.command()
     async def report(self, ctx, *, words):
         ''' Report an issue to the developers '''
-        await self.logchan.send("REPORT - "+ctx.author.name+" in "+ctx.guild.name+": "+words)
-
-    @commands.group(hidden=True)
-    async def cgt(self, ctx):
-        '''g'''
-        print(ctx.command.name)
-        await ctx.send(str(discord.utils.get(ctx.guild.text_channels, id=0)))
-
-    @cgt.command(hidden=True)
-    async def rer(self, ctx):
-        '''g'''
-        print(ctx.command.name)
-        print(ctx.command.parent.name)
-        print(ctx.command.qualified_name)
-
-    @commands.command(hidden=True)
-    async def roletest(self, ctx, *, role : discord.Role):
-        print(role)
+        await self.barry.logchan.send("REPORT - "+ctx.author.name+" in "+ctx.guild.name+": "+words)
 
     @commands.command(hidden=True)
     async def mathmult(self, ctx, *, words):
@@ -170,7 +149,7 @@ class Barry(discord.Client):
             Note: Naming a color "remove" will make it unusable.
         '''
         try:
-            setting = self.settings[ctx.guild.id]
+            setting = self.barry.settings[ctx.guild.id]
             if setting.features["colors_Enabled"] == "0":
                 return await ctx.send("Color Roles are not enabled on your server. Ask an Admin about it.", delete_after=15)
             if len(setting.features["colors_IDs"].split()) == 0:
@@ -224,7 +203,7 @@ class Barry(discord.Client):
         !sub            - Show the list of usable options
         !sub [name]     - Sub or unsub from a specific option
         '''
-        setting = self.settings[ctx.guild.id]
+        setting = self.barry.settings[ctx.guild.id]
         if setting.features["sublists_Enabled"] == "0":
             return await ctx.send("Subscribing is not enabled on your server. Ask an Admin about it.", delete_after=15)
         if len(setting.features["sublists_IDs"].split()) == 0:
@@ -291,18 +270,33 @@ class Barry(discord.Client):
             traceback.print_exc()
 
 
-
-
-
-
-
-
     @commands.command(hidden=True, aliases=["shtudown", "sd", "shtdon", "shutdwon"])
     @commands.check(Perms.is_owner)
     async def shutdown(self, ctx):
         await ctx.send("Shutting down. I will not restart until manually run again.")
-        await self.logout()
+        await self.barry.logout()
         await self.bot.logout()
+
+    @commands.command(hidden=True)
+    @commands.check(Perms.is_owner)
+    async def leaveserver(self, ctx, *, sid):
+        '''leave'''
+        try:
+            sid = int(sid.split()[0])
+            if sid > 0:
+                toleave = None
+                for g in self.bot.guilds:
+                    if g.id == sid:
+                        toleave = g
+                if toleave is not None:
+                    await toleave.leave()
+                    await ctx.send("left server")
+                else:
+                    await ctx.send("no server")
+            else:
+                await ctx.send("invalid id")
+        except:
+            await ctx.send("failed")
 
     @commands.command()
     async def emoji(self, ctx):
@@ -329,13 +323,6 @@ class Barry(discord.Client):
 
     async def check_looper_slow(self):
         ''' This is the function which holds a loop that begins in on_ready and runs every 5 minutes'''
-        to_remove_Paginators = set()
-        for paginator in self.paginators:
-            if paginator.ended:
-                to_remove_Paginators.add(paginator)
-        for nator in to_remove_Paginators:
-            self.paginators.remove(nator)
-
 
 
         await asyncio.sleep(300)
@@ -345,13 +332,8 @@ class Barry(discord.Client):
         ''' This is the function which holds a loop that begins in on_ready and runs every 30 seconds'''
 
 
-
         await asyncio.sleep(30)
         self.loop.create_task(self.check_looper_fast())
-
-
-
-
 
 
     @commands.command(hidden=True)
@@ -399,7 +381,7 @@ class Barry(discord.Client):
 
 
 
-class MainCommands: #command defs can go here as well
+class MainCommands(commands.Cog): #command defs can go here as well
 
     def __init__(self, bot, config):
         self.bot = bot
